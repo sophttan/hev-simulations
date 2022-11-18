@@ -40,8 +40,8 @@ SEIR <- function(d, res, b, inc, inf) {
     # print(risk_hh[1:10])
     # print(risk_c[1:10])
 
-    new_inf_hh <- rbinom(nrow(summary_data), 1, risk_hh)
-    new_inf_c <- rbinom(nrow(summary_data), 1, risk_c)
+    new_inf_hh <- rbinom(nrow(d), 1, risk_hh)
+    new_inf_c <- rbinom(nrow(d), 1, risk_c)
     
     # print(new_inf_hh[1:10])
     # print(new_inf_c[1:10])
@@ -67,14 +67,20 @@ f
 f %>% 
   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
-res <- 0
+hh <- 0
+community <- 0
+res <- rep(0, time)
 beta <- 0.35
-for (i in 1:1000) {
+for (i in 1:100) {
   final <- SEIR(initial_pop, results, beta, num_weeks_inc, num_weeks_inf)
   names(final) <- c("No", "HH", "Type", 1:time)
   f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
-  f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) 
-  total_inf <- f %>% group_by(time) %>% summarise(inf=sum(value))
+  f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) 
+  total_inf <- f %>% group_by(time) %>% summarise(inf=sum(value)) %>% full_join(expand.grid(time=1:time)) %>% replace_na(list(inf=0)) %>% arrange(time)
   res <- res+total_inf$inf
 }
-res <- res/1000
+res <- res/100
+res
+
+average <- data.frame(time=1:time, res)
+average %>% ggplot(aes(time, res)) + geom_line()
