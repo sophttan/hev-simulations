@@ -6,12 +6,12 @@ library(purrr)
 initial_pop <- data.frame(No=1:1000, 
                           HH=rep(1:200, each=5), 
                           S=c(0,rep(1,999)), 
-                          E=c(1,rep(0,999)), Ecounter=c(28,rep(0,999)), 
+                          E=0, Ecounter=0, 
                           I=0, Icounter=0, 
                           R=0) # 200 households, 4 compartments (SEIR)
 results <- initial_pop[,1:2] %>% mutate(Itype=NA) # number of infections per household over time
 
-time <- 52*7 # num days to simulate (12 months total)
+time <- 52*7*1.5 # num days to simulate (12 months total)
 
 # incubation period and infectious period fixed
 num_weeks_inc = 4*7
@@ -46,12 +46,12 @@ SEIR_environment <- function(d, res, b, inc, inf) {
   return(res)
 }
 
-final <- SEIR_environment(initial_pop, results, 0.001, num_weeks_inc, num_weeks_inf)
-names(final) <- c("No", "HH", "Type", 1:time)
-f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
-f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) %>% select(!Type)
-f %>% 
-  group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
+# final <- SEIR_environment(initial_pop, results, 0.001, num_weeks_inc, num_weeks_inf)
+# names(final) <- c("No", "HH", "Type", 1:time)
+# f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
+# f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) %>% select(!Type)
+# f %>% 
+#   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
 res <- rep(0, time)
 beta <- 0.001
@@ -67,10 +67,13 @@ res <- res/100
 res
 
 average <- data.frame(time=1:time, res)
-average %>% ggplot(aes(time, res)) + geom_line()
+p<-average %>% ggplot(aes(time, res)) + geom_line() + 
+  scale_x_continuous("Time (days)") + 
+  scale_y_continuous("Incidence (number of new infections")
+p
 
-
-
+ggsave(p, filename="results/environmental.jpg")
+write_csv(average, "results/environmental.csv")
 
 
 # compare <- expand.grid(HH=1:200, time=1:364) 
@@ -87,7 +90,8 @@ average %>% ggplot(aes(time, res)) + geom_line()
 #   scale_y_continuous("Number of infections") + 
 #   scale_x_continuous("Weeks")
 # 
-# f %>% group_by(time) %>% summarise_all(sum) %>% select(!HH) %>% ggplot(aes(time)) + 
-#   geom_line(aes(y=value), color="black") + 
-#   scale_y_continuous("Number of current infections") + 
-#   scale_x_continuous("Days")
+
+averagehh <- read_csv("results/hh.csv")
+
+p +
+  geom_line(aes(y=averagehh$res), color="darkblue") 

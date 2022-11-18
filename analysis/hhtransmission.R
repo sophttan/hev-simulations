@@ -11,7 +11,7 @@ initial_pop <- data.frame(No=1:1000,
                           R=0) # 200 households, 4 compartments (SEIR)
 results <- initial_pop[,1:2] %>% mutate(Itype=NA) # number of infections per household over time
 
-time <- 52*7 # num days to simulate (12 months total)
+time <- 52*7*1.5 # num days to simulate (12 months total)
 
 # incubation period and infectious period fixed
 num_weeks_inc = 4*7
@@ -59,13 +59,13 @@ SEIR <- function(d, res, b, inc, inf) {
 }
 
  
-final <- SEIR(initial_pop, results, 0.35, num_weeks_inc, num_weeks_inf)
-names(final) <- c("No", "HH", "Type", 1:time)
-f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
-f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) 
-f
-f %>% 
-  group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
+# final <- SEIR(initial_pop, results, 0.35, num_weeks_inc, num_weeks_inf)
+# names(final) <- c("No", "HH", "Type", 1:time)
+# f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
+# f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) 
+# f
+# f %>% 
+#   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
 hh <- 0
 community <- 0
@@ -78,9 +78,24 @@ for (i in 1:100) {
   f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) 
   total_inf <- f %>% group_by(time) %>% summarise(inf=sum(value)) %>% full_join(expand.grid(time=1:time)) %>% replace_na(list(inf=0)) %>% arrange(time)
   res <- res+total_inf$inf
+  hh <- hh+sum(f$Type=="H", na.rm=T)
+  community <- community+sum(f$Type=="C", na.rm=T)
 }
 res <- res/100
+hh <- hh/100
+community <- community/100
 res
 
 average <- data.frame(time=1:time, res)
-average %>% ggplot(aes(time, res)) + geom_line()
+p <- average %>% ggplot(aes(time, res)) + geom_line() + 
+  scale_x_continuous("Time (days)") + 
+  scale_y_continuous("Incidence (number of new infections")
+
+p
+ggsave(p, filename="results/hh.jpg")
+write_csv(average, "results/hh.csv")
+
+hh
+community
+
+# 800-850 total cases
