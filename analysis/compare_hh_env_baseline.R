@@ -2,11 +2,11 @@ rm(list=ls())
 gc()
 library(tidyverse)
 
-hh2 <- read_csv("results/hh_risk2.csv")
-hh4 <- read_csv("results/hh_risk4.csv")
-hh10 <- read_csv("results/hh_risk10.csv")
+hh2 <- read_csv("results/simulated_data/hh_risk2.csv")
+hh4 <- read_csv("results/simulated_data/hh_risk4.csv")
+hh10 <- read_csv("results/simulated_data/hh_risk10.csv")
 
-env <- read_csv("results/environmental.csv")
+env <- read_csv("results/simulated_data/environmental.csv")
 
 prep_results <- function(data){
   data %>% group_by(i, month) %>% 

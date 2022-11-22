@@ -78,7 +78,7 @@ for (i in 1:100) {
 
 inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 
-write_csv(inf_type, "results/environmental.csv")
+write_csv(inf_type, "results/simulated_data/environmental.csv")
 
 inf_type_overall <- inf_type %>% group_by(month) %>% summarise(count=n()/100)
 

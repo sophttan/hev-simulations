@@ -92,7 +92,7 @@ inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 # average total infections
 (inf_type %>% nrow())/100
 
-write_csv(inf_type, "results/hh_risk2.csv")
+write_csv(inf_type, "results/simulated_data/hh_risk2.csv")
 
 inf_type_overall <- inf_type %>% group_by(month) %>% summarise(count=n())
 
