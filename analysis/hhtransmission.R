@@ -67,7 +67,6 @@ SEIR <- function(d, res, b, inc, inf) {
 # f %>%
 #   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
-res <- rep(0, time)
 beta <- 0.09
 for (i in 1:100) {
   final <- SEIR(initial_pop, results, beta, num_weeks_inc, num_weeks_inf)
