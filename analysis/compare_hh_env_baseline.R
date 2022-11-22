@@ -29,7 +29,7 @@ p <- inf_type %>% ggplot(aes(month)) +
   scale_x_continuous("Time (months)") +
   scale_y_continuous("Proportion of new cases with any household\ninfection in the last 30 days") +
   scale_color_brewer(palette="Dark2", direction=-1, 
-                     labels=c("Environmental transmission only","Household relative risk = 2",
+                     breaks=c("Environmental transmission only","Household relative risk = 2",
                               "Household relative risk = 4","Household relative risk = 10")) +
   theme(legend.title = element_blank())
 p %>% ggsave(filename = "results/hh_environ_comparison/prevalence20_comparison.jpg")
