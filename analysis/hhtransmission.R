@@ -12,6 +12,8 @@ initial_pop <- data.frame(No=1:1000,
 results <- initial_pop[,1:2] %>% mutate(Itype=NA) # number of infections per household over time
 
 time <- 52*7*1.5 # num days to simulate (12 months total)
+months <- rep(1:19, each=30)[1:time]
+days_months <- data.frame(day=1:time, month=months)
 
 # incubation period and infectious period fixed
 num_weeks_inc = 4*7
@@ -34,17 +36,11 @@ SEIR <- function(d, res, b, inc, inf) {
       mutate(Ih=sum(I)) %>% ungroup() %>% mutate(Ic=sum(I)-Ih) 
     res <- res %>% cbind(I=summary_data$I)
     
-    risk_hh <- summary_data$S*4*b*summary_data$Ih/1000
-    risk_c <- summary_data$S*b*summary_data$Ic/1000
+    risk_hh <- summary_data$S*2*b*summary_data$Ih/4
+    risk_c <- summary_data$S*b*summary_data$Ic/995
     
-    # print(risk_hh[1:10])
-    # print(risk_c[1:10])
-
     new_inf_hh <- rbinom(nrow(d), 1, risk_hh)
     new_inf_c <- rbinom(nrow(d), 1, risk_c)
-    
-    # print(new_inf_hh[1:10])
-    # print(new_inf_c[1:10])
     
     d$E[new_inf_hh==1|new_inf_c==1] <- 1
     case_type <- case_when(new_inf_hh==1&new_inf_c==1~"B",
@@ -54,48 +50,73 @@ SEIR <- function(d, res, b, inc, inf) {
     d$Ecounter[d$E==1] <- d$Ecounter[d$E==1] + 1
     d$Icounter[d$I==1] <- d$Icounter[d$I==1] + 1
     d$S[d$E==1] <- 0
+    
+    # if(i==210){
+    #   view(d)
+    # }
   }
   return(res)
 }
 
  
-# final <- SEIR(initial_pop, results, 0.35, num_weeks_inc, num_weeks_inf)
+# final <- SEIR(initial_pop, results, 0.03, num_weeks_inc, num_weeks_inf)
 # names(final) <- c("No", "HH", "Type", 1:time)
 # f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
-# f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) 
+# f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time)
 # f
-# f %>% 
+# f %>%
 #   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
-hh <- 0
-community <- 0
 res <- rep(0, time)
-beta <- 0.35
+beta <- 0.09
 for (i in 1:100) {
   final <- SEIR(initial_pop, results, beta, num_weeks_inc, num_weeks_inf)
+  
+  # restructure table
   names(final) <- c("No", "HH", "Type", 1:time)
   f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
   f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) 
-  total_inf <- f %>% group_by(time) %>% summarise(inf=sum(value)) %>% full_join(expand.grid(time=1:time)) %>% replace_na(list(inf=0)) %>% arrange(time)
-  res <- res+total_inf$inf
-  hh <- hh+sum(f$Type=="H", na.rm=T)
-  community <- community+sum(f$Type=="C", na.rm=T)
+  f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>% 
+    ungroup() %>% rowwise() %>% 
+    mutate(has_hh = any(unlist(day_limits) >= (time-30) & unlist(day_limits) < time)) %>% 
+    select(c(time, Type, has_hh))
+  
+  if(i==1){
+    inf_type <- cbind(i=i, f)
+  }else{
+    inf_type <- rbind(inf_type, cbind(i=i, f))
+  }
 }
-res <- res/100
-hh <- hh/100
-community <- community/100
-res
 
-average <- data.frame(time=1:time, res)
-p <- average %>% ggplot(aes(time, res)) + geom_line() + 
-  scale_x_continuous("Time (days)") + 
-  scale_y_continuous("Incidence (number of new infections")
+inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 
-p
-ggsave(p, filename="results/hh.jpg")
-write_csv(average, "results/hh.csv")
+# average total infections
+(inf_type %>% nrow())/100
 
-hh
-community
+write_csv(inf_type, "results/hh_risk2.csv")
 
-# 800-850 total cases
+inf_type_overall <- inf_type %>% group_by(month) %>% summarise(count=n())
+
+p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/100) %>%
+  ggplot() + geom_line(aes(month, count, group=Type, color=Type)) + 
+  scale_color_discrete("Source of infection", labels=c("Both community and household", "Community", "Household", "Index case")) + 
+  scale_x_continuous("Time (months)") + 
+  scale_y_continuous("Incidence (number of new infections)") 
+p %>% ggsave(filename = "results/household_incidence/hh_risk2.jpg")
+
+
+inf_type <- inf_type %>% group_by(i, month)
+inf_type_check <- inf_type %>% summarise(hh = sum(Type=="H",na.rm=T)/n(), has_hh = mean(has_hh,na.rm=T)) %>% 
+  group_by(month) %>% summarise_all(mean)
+p <- inf_type_check %>% ggplot(aes(month)) + 
+  geom_line(aes(y=hh, color="blue")) + 
+  geom_line(aes(y=has_hh, color="black")) + 
+  scale_color_brewer(palette="Dark2", direction=-1, 
+                     labels=c("Household infections (observed)", "Household infections (predicted)")) + 
+  scale_x_continuous("Time (months)") +
+  scale_y_continuous("Proportion of household infections") +
+  theme(legend.title = element_blank())
+p %>% ggsave(filename = "results/household_classification/hh_risk2_classification.jpg")
+
+
+inf_type %>% mutate(correct=(has_hh&(Type=="H"|Type=="B"))|(!has_hh&(Type%>%is.na()|Type=="C")))
