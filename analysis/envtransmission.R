@@ -11,8 +11,8 @@ initial_pop <- data.frame(No=1:1000,
                           R=0) # 200 households, 4 compartments (SEIR)
 results <- initial_pop[,1:2] %>% mutate(Itype=NA) # number of infections per household over time
 
-time <- 52*7*1.5 # num days to simulate (12 months total)
-months <- rep(1:19, each=30)[1:time]
+time <- 52*7 # num days to simulate (12 months total)
+months <- rep(1:13, each=30)[1:time]
 days_months <- data.frame(day=1:time, month=months)
 
 # incubation period and infectious period fixed
@@ -48,14 +48,7 @@ SEIR_environment <- function(d, res, b, inc, inf) {
   return(res)
 }
 
-# final <- SEIR_environment(initial_pop, results, 0.001, num_weeks_inc, num_weeks_inf)
-# names(final) <- c("No", "HH", "Type", 1:time)
-# f <- final %>% pivot_longer(cols = 4:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
-# f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) %>% arrange(time) %>% select(!Type)
-# f %>% 
-#   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
-
-beta <- .00075
+beta <- .00016
 
 for (i in 1:100) {
   final <- SEIR_environment(initial_pop, results, beta, num_weeks_inc, num_weeks_inf)
@@ -66,9 +59,9 @@ for (i in 1:100) {
   f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) 
   f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>% 
     ungroup() %>% rowwise() %>% 
-    mutate(has_hh = any(unlist(day_limits) >= (time-30) & unlist(day_limits) < time)) %>% 
+    mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>% 
     select(c(time, Type, has_hh))
-  
+   
   if(i==1){
     inf_type <- cbind(i=i, f)
   }else{
@@ -78,25 +71,35 @@ for (i in 1:100) {
 
 inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 
-write_csv(inf_type, "results/simulated_data/environmental.csv")
+# average total infections
+(inf_type %>% nrow())/100
 
-inf_type_overall <- inf_type %>% group_by(month) %>% summarise(count=n()/100)
+write_csv(inf_type, "results/cumulative_inc_5/simulated_data/environmental.csv")
 
-p <- inf_type_overall %>%
-  ggplot() + geom_line(aes(month, count)) + 
+p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/100) %>%
+  ggplot() + geom_line(aes(month, count, group=has_hh, color=has_hh)) + 
+  scale_color_discrete("Predicted source of infection", 
+                       breaks=c(TRUE, FALSE),
+                       labels=c("Household infection", "Not household infection")) + 
   scale_x_continuous("Time (months)") + 
-  scale_y_continuous("Incidence (number of new infections)") 
-p %>% ggsave(filename = "results/environmental_incidence/environmental.jpg")
+  scale_y_continuous("Incidence (number of new infections)") + 
+  labs(title="Incidence over time with predicted source of infection", 
+       subtitle="Only environmental source transmission, Cumulative incidence ~ 5%")
+p %>% ggsave(filename = "results/cumulative_inc_5/figures/pred_environment.jpg")
 
-inf_type <- inf_type %>% group_by(i, month)
-inf_type_check <- inf_type %>% summarise(has_hh = mean(has_hh,na.rm=T)) %>% 
-  group_by(month) %>% summarise_all(mean)
-p <- inf_type_check %>% ggplot(aes(month)) + 
-  geom_line(aes(y=has_hh)) + 
-  scale_x_continuous("Time (months)") +
-  scale_y_continuous("Proportion of household infections") +
-  theme(legend.title = element_blank())
-p %>% ggsave(filename = "results/environmental_incidence/environmental_classification.jpg")
+
+(inf_type %>% group_by(i) %>% summarise(prop=mean(has_hh)))$prop %>% mean()
+
+
+# inf_type <- inf_type %>% group_by(i, month)
+# inf_type_check <- inf_type %>% summarise(has_hh = mean(has_hh,na.rm=T)) %>% 
+#   group_by(month) %>% summarise_all(mean)
+# p <- inf_type_check %>% ggplot(aes(month)) + 
+#   geom_line(aes(y=has_hh)) + 
+#   scale_x_continuous("Time (months)") +
+#   scale_y_continuous("Proportion of household infections") +
+#   theme(legend.title = element_blank())
+# p %>% ggsave(filename = "results/environmental_incidence/environmental_classification.jpg")
 
 
 
