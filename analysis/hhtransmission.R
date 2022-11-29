@@ -3,6 +3,8 @@ gc()
 library(tidyverse)
 library(purrr)
 
+setwd(here::here("results/cumulative_inc_5/"))
+
 initial_pop <- data.frame(No=1:1000, 
                           HH=rep(1:200, each=5), 
                           S=c(0,rep(1,999)), 
@@ -67,8 +69,8 @@ SEIR <- function(d, res, rr, b, inc, inf) {
 # f %>%
 #   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
-rr <- 1
-beta <- 0.14
+rr <- 5
+beta <- 0.057
 for (i in 1:100) {
   final <- SEIR(initial_pop, results, rr, beta, num_weeks_inc, num_weeks_inf)
   
@@ -79,7 +81,7 @@ for (i in 1:100) {
   f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>% 
     ungroup() %>% rowwise() %>% 
     mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>% 
-    select(c(time, Type, has_hh))
+    select(c(time, HH, Type, has_hh))
   
   if(i==1){
     inf_type <- cbind(i=i, f)
@@ -93,7 +95,7 @@ inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 # average total infections
 (inf_type %>% nrow())/100
 
-write_csv(inf_type, "results/cumulative_inc_30/simulated_data/hh_risk1.csv")
+write_csv(inf_type, "simulated_data/hh_risk5.csv")
 
 inf_type_overall <- inf_type %>% group_by(month) %>% summarise(count=n())
 
@@ -104,8 +106,8 @@ p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/100) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with known source of infection", 
-       subtitle="Household relative risk = 1, Cumulative incidence ~ 30%")
-p %>% ggsave(filename = "results/cumulative_inc_30/figures/obs_hh_risk1.jpg")
+       subtitle="Household relative risk = 5, Cumulative incidence ~ 5%")
+p %>% ggsave(filename = "figures/obs_hh_risk5.jpg")
 
 
 p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/100) %>%
@@ -116,8 +118,8 @@ p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/100) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with predicted source of infection", 
-       subtitle="Household relative risk = 1, Cumulative incidence ~ 30%")
-p %>% ggsave(filename = "results/cumulative_inc_30/figures/pred_hh_risk1.jpg")
+       subtitle="Household relative risk = 5, Cumulative incidence ~ 5%")
+p %>% ggsave(filename = "figures/pred_hh_risk5.jpg")
 
 
 inf_type <- inf_type %>% group_by(i, month)
@@ -132,10 +134,17 @@ p <- inf_type_check %>% ggplot(aes(month, count, color=name, shape=value, group=
   scale_shape(name="Source of infection") + 
   scale_x_continuous("Time (months)") +
   scale_y_continuous("Number of household infections") 
-p %>% ggsave(filename = "results/cumulative_inc_30/figures/hh_risk1_classification.jpg")
+p %>% ggsave(filename = "figures/hh_risk5_classification.jpg")
 
 
+# compare observed and predicted fraction of cases with prior household infection
 (inf_type %>% 
     mutate(has_hh_obs=ifelse(!is.na(Type)&(Type=="H"|Type=="B"), T, F)) %>% 
     group_by(i) %>% summarise(prop_obs=mean(has_hh_obs), prop_pred=mean(has_hh))) %>% summary()
+
+
+# calculate average hh attack rate across hh and simulations
+inf_type %>% group_by(i, HH) %>% summarise(attack_rate_hh=n()/5) %>% 
+  group_by(i) %>% summarise(attack_rate=mean(attack_rate_hh)) %>% 
+  summary()
 

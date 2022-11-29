@@ -2,12 +2,16 @@ rm(list=ls())
 gc()
 library(tidyverse)
 
-setwd("results/cumulative_inc_30/")
+setwd(here::here("results/cumulative_inc_30/"))
 hh1 <- read_csv("simulated_data/hh_risk1.csv")
 hh2 <- read_csv("simulated_data/hh_risk2.csv")
 hh5 <- read_csv("simulated_data/hh_risk5.csv")
 
 env <- read_csv("simulated_data/environmental.csv")
+
+months <- rep(1:13, each=35)[1:364]
+days_months <- data.frame(day=1:364, month=months)
+hh1 %>% left_join(days_months, by=c("time"="day"))
 
 prep_results <- function(data){
   data %>% group_by(i, month) %>% 
@@ -39,3 +43,16 @@ p <- inf_type %>% ggplot(aes(month)) +
   labs(title="Comparison of models at 30% cumulative incidence")
 p %>% ggsave(filename = "figures/comparison.jpg")
 
+
+mean((hh1 %>% group_by(i) %>% summarise(HH=length(unique(HH))))$HH)/200
+mean((hh2 %>% group_by(i) %>% summarise(HH=length(unique(HH))))$HH)/200
+mean((hh5 %>% group_by(i) %>% summarise(HH=length(unique(HH))))$HH)/200
+mean((env %>% group_by(i) %>% summarise(HH=length(unique(HH))))$HH)/200
+
+hh1_test <- hh1 %>% select(!month) %>% left_join(days_months, by=c("time"="day"))
+hh1_test %>% filter(!Type %>% is.na()) %>% prep_results() %>% ggplot(aes(month, has_hh)) + geom_line() + 
+  scale_x_continuous("Time (months - 35 days each)") + 
+  scale_y_continuous("Proportion of new cases with any household\ninfection in the last 7-45 days")
+hh1_test %>% group_by(i, month) %>% 
+  summarise(cases=n(), has_hh = mean(has_hh,na.rm=T)) %>% 
+  group_by(month) %>% summarise(cases=sum(cases)/100, has_hh=mean(has_hh)) 

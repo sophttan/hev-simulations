@@ -3,7 +3,7 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/cumulative_inc_5/"))
+setwd(here::here("results/cumulative_inc_30/"))
 
 initial_pop <- data.frame(No=1:1000, 
                           HH=rep(1:200, each=5), 
@@ -21,7 +21,9 @@ days_months <- data.frame(day=1:time, month=months)
 num_weeks_inc = 4*7
 num_weeks_inf = 1*7
 
-SEIR_environment <- function(d, res, b, inc, inf) {
+SEIR_blend <- function(d, res, rr, b_hh, b_e, inc, inf) {
+  
+  total_inf <- data.frame(HH=1:200, I=0)
   
   for (i in 1:time) {
     d$R[d$Icounter==inf] <- 1
@@ -29,7 +31,6 @@ SEIR_environment <- function(d, res, b, inc, inf) {
     d$Icounter[d$Icounter==inf] <- 0
     
     d$I[d$Ecounter==inc] <- 1
-    d$Icounter[d$I==1] <- d$Icounter[d$I==1] + 1
     d$E[d$Ecounter==inc] <- 0
     d$Ecounter[d$Ecounter==inc] <- 0
     
@@ -37,24 +38,35 @@ SEIR_environment <- function(d, res, b, inc, inf) {
       mutate(Ih=sum(I)) %>% ungroup() %>% mutate(Ic=sum(I)-Ih) 
     res <- res %>% cbind(I=summary_data$I)
     
-    risk <- b*d$S
+    risk_hh <- d$S*rr*b_hh*summary_data$Ih/4
+    risk_c <- d$S*b_hh*summary_data$Ic/995
+    risk_e <- b_e*d$S
     
-    new_inf <- rbinom(1000, 1, risk)
+    new_inf <- rbinom(1000, 1, risk_e)
+    new_inf_hh <- rbinom(1000, 1, risk_hh)
+    new_inf_c <- rbinom(1000, 1, risk_c)
     
-    d$E[new_inf==1] <- 1
+    d$E[new_inf_hh==1|new_inf_c==1|new_inf==1] <- 1
+    case_type <- case_when(new_inf==1~"E",
+                           new_inf==1&(new_inf_hh==1|new_inf_c==1)~"B",
+                           new_inf_hh==1~"H", 
+                           new_inf_c==1~"C")
+    
+    res$Itype <- ifelse(!is.na(res$Itype), res$Itype, case_type)
     d$Ecounter[d$E==1] <- d$Ecounter[d$E==1] + 1
+    d$Icounter[d$I==1] <- d$Icounter[d$I==1] + 1
     d$S[d$E==1] <- 0
     
   }
-  
   return(res)
 }
 
-
-beta <- 0.00016
+rr <- 1
+beta_hh <- 0.08
+beta_env <- 0.0003
 
 for (i in 1:100) {
-  final <- SEIR_environment(initial_pop, results, beta, num_weeks_inc, num_weeks_inf)
+  final <- SEIR_blend(initial_pop, results, rr, beta_hh, beta_env, num_weeks_inc, num_weeks_inf)
   
   # restructure table
   names(final) <- c("No", "HH", "Type", 1:time)
@@ -64,7 +76,7 @@ for (i in 1:100) {
     ungroup() %>% rowwise() %>% 
     mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>% 
     select(c(time, HH, Type, has_hh))
-   
+  
   if(i==1){
     inf_type <- cbind(i=i, f)
   }else{
@@ -74,39 +86,17 @@ for (i in 1:100) {
 
 inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 
-# average total infections
 (inf_type %>% nrow())/100
+inf_type %>% group_by(Type) %>% summarise(n=n()/nrow(.)) 
 
-write_csv(inf_type, "simulated_data/environmental.csv")
-
-p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/100) %>%
-  ggplot() + geom_line(aes(month, count, group=has_hh, color=has_hh)) + 
-  scale_color_discrete("Predicted source of infection", 
-                       breaks=c(TRUE, FALSE),
-                       labels=c("Household infection", "Not household infection")) + 
+p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/100) %>%
+  ggplot() + geom_line(aes(month, count, group=Type, color=Type)) + 
+  scale_color_discrete("Source of infection", 
+                       breaks=c("H", "C", "E"),
+                       labels=c("Household", "Community", "Environment")) + 
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
-  labs(title="Incidence over time with predicted source of infection", 
-       subtitle="Only environmental source transmission, Cumulative incidence ~ 10%")
-p %>% ggsave(filename = "figures/pred_environment.jpg")
-
-
-(inf_type %>% group_by(i) %>% summarise(prop=mean(has_hh)))$prop %>% mean()
-
-# calculate average hh attack rate across hh and simulations
-inf_type %>% group_by(i, HH) %>% summarise(attack_rate_hh=n()/5) %>% 
-  group_by(i) %>% summarise(attack_rate=mean(attack_rate_hh)) %>% 
-  summary()
-
-# inf_type <- inf_type %>% group_by(i, month)
-# inf_type_check <- inf_type %>% summarise(has_hh = mean(has_hh,na.rm=T)) %>% 
-#   group_by(month) %>% summarise_all(mean)
-# p <- inf_type_check %>% ggplot(aes(month)) + 
-#   geom_line(aes(y=has_hh)) + 
-#   scale_x_continuous("Time (months)") +
-#   scale_y_continuous("Proportion of household infections") +
-#   theme(legend.title = element_blank())
-# p %>% ggsave(filename = "results/environmental_incidence/environmental_classification.jpg")
-
-
+  labs(title="Incidence over time with known source of infection", 
+       subtitle="Household relative risk = 1, Cumulative incidence ~ 30%")
+p
 
