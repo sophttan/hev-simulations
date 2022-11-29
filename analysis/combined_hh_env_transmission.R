@@ -3,7 +3,7 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/cumulative_inc_30/"))
+setwd(here::here("results/blended_model/cumulative_inc_30/"))
 
 initial_pop <- data.frame(No=1:1000, 
                           HH=rep(1:200, each=5), 
@@ -100,3 +100,4 @@ p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/100) %>%
        subtitle="Household relative risk = 1, Cumulative incidence ~ 30%")
 p
 
+p %>% ggsave(filename = "figures/comparison.jpg")

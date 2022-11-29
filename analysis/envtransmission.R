@@ -3,7 +3,7 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/cumulative_inc_5/"))
+setwd(here::here("results/separate_models/cumulative_inc_5/"))
 
 initial_pop <- data.frame(No=1:1000, 
                           HH=rep(1:200, each=5), 
