@@ -62,8 +62,8 @@ SEIR_blend <- function(d, res, rr, b_hh, b_e, inc, inf) {
 }
 
 rr <- 1
-beta_hh <- 0.08
-beta_env <- 0.0003
+beta_hh <- 0.025
+beta_env <- 0.0009 
 
 for (i in 1:100) {
   final <- SEIR_blend(initial_pop, results, rr, beta_hh, beta_env, num_weeks_inc, num_weeks_inf)
@@ -89,6 +89,19 @@ inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 (inf_type %>% nrow())/100
 inf_type %>% group_by(Type) %>% summarise(n=n()/nrow(.)) 
 
+write_csv(inf_type, "simulated_data/25p75e_hhrisk1.csv")
+
+# compare observed and predicted fraction of cases with prior household infection
+(inf_type %>% 
+    mutate(has_hh_obs=ifelse(Type=="H", T, F)) %>% 
+    group_by(i) %>% summarise(prop_obs=mean(has_hh_obs), prop_pred=mean(has_hh))) %>% summary()
+
+mean((inf_type %>% group_by(i) %>% summarise(HH=length(unique(HH))))$HH)/200
+# calculate average hh attack rate across hh and simulations
+inf_type %>% group_by(i, HH) %>% summarise(attack_rate_hh=n()/5) %>% 
+  group_by(i) %>% summarise(attack_rate=mean(attack_rate_hh)) %>% 
+  summary()
+
 p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/100) %>%
   ggplot() + geom_line(aes(month, count, group=Type, color=Type)) + 
   scale_color_discrete("Source of infection", 
@@ -97,7 +110,17 @@ p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/100) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with known source of infection", 
-       subtitle="Household relative risk = 1, Cumulative incidence ~ 30%")
+       subtitle="Household relative risk = 1\n75:25 ratio of transmission from person-person contact:environment\nCumulative incidence ~ 30%")
 p
+p %>% ggsave(filename = "figures/75p25e_hhrisk1_obs.jpg")
 
-p %>% ggsave(filename = "figures/comparison.jpg")
+p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/100) %>%
+  ggplot() + geom_line(aes(month, count, group=has_hh, color=has_hh)) + 
+  scale_color_discrete("Predicted source of infection", 
+                       breaks=c(TRUE, FALSE),
+                       labels=c("Household infection", "Not household infection")) + 
+  scale_x_continuous("Time (months)") + 
+  scale_y_continuous("Incidence (number of new infections)") + 
+  labs(title="Incidence over time with predicted source of infection", 
+       subtitle="Household relative risk = 1\n50:50 ratio of transmission from person-person contact:environment\nCumulative incidence ~ 30%")
+p %>% ggsave(filename = "figures/50p50e_hhrisk1_pred.jpg")
