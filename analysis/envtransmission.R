@@ -3,7 +3,7 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/separate_models/cumulative_inc_5/"))
+setwd(here::here("results/separate_models/cumulative_inc_30/"))
 
 time <- 52*7 # num days to simulate (12 months total)
 months <- rep(1:13, each=30)[1:time]
@@ -75,7 +75,7 @@ SEIR_environment <- function(b, inc, inf) {
 }
 
 
-beta <- 0.00016
+beta <- 0.0011
 sims <- 1000
 num_hh <- rep(0, sims)
 
@@ -116,7 +116,7 @@ p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with predicted source of infection", 
-       subtitle="Only environmental source transmission, Cumulative incidence ~ 5%")
+       subtitle="Only environmental source transmission, Cumulative incidence ~ 30%")
 p %>% ggsave(filename = "figures/pred_environment.jpg")
 
 
