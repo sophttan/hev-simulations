@@ -2,13 +2,13 @@ rm(list=ls())
 gc()
 library(tidyverse)
 
-setwd(here::here("results/blended_model/cumulative_inc_10/"))
+setwd(here::here("results/blended_model/cumulative_inc_30/"))
 hh31 <- read_csv("simulated_data/75p25e_hhrisk5.csv")
 hh11 <- read_csv("simulated_data/50p50e_hhrisk5.csv")
 hh13 <- read_csv("simulated_data/25p75e_hhrisk5.csv")
 
-env <- read_csv(here::here("results/separate_models/cumulative_inc_10/simulated_data/environmental.csv"))
-hh <- read_csv(here::here("results/separate_models/cumulative_inc_10/simulated_data/hh_risk5.csv"))
+env <- read_csv(here::here("results/separate_models/cumulative_inc_30/simulated_data/environmental.csv"))
+hh <- read_csv(here::here("results/separate_models/cumulative_inc_30/simulated_data/hh_risk5.csv"))
 
 # months <- rep(1:13, each=35)[1:364]
 # days_months <- data.frame(day=1:364, month=months)
@@ -44,6 +44,6 @@ p <- inf_type %>% ggplot(aes(month)) +
                      name="Ratio of transmission\nfrom person-person contact\nand environmental source",
                      breaks=c("Person-person only", "75:25 ratio","50:50 ratio","25:75 ratio", "Environmental only")) +
   theme(panel.grid.minor = element_blank()) +
-  labs(title="Comparison of models at 10% cumulative incidence and\nhousehold relative risk of 5")
+  labs(title="Comparison of models at 30% cumulative incidence and\nhousehold relative risk of 5")
 p
 p %>% ggsave(filename = "figures/comparison_hhrisk5.jpg")

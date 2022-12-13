@@ -96,9 +96,9 @@ SEIR <- function(rr, b, inc, inf) {
 # f %>%
 #   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
-rr <- 5
-beta <- 0.087
-sims <- 100
+rr <- 2
+beta <- 0.12
+sims <- 1000
 num_hh <- rep(0, sims)
 
 for (i in 1:sims) {
@@ -126,7 +126,7 @@ inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 # average total infections
 (inf_type %>% nrow())/sims
 
-write_csv(inf_type, "simulated_data/hh_risk5.csv")
+write_csv(inf_type, "simulated_data/hh_risk2.csv")
 
 
 
@@ -139,8 +139,8 @@ p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with known source of infection", 
-       subtitle="Household relative risk = 5, Cumulative incidence ~ 30%")
-p %>% ggsave(filename = "figures/obs_hh_risk5.jpg")
+       subtitle="Household relative risk = 2, Cumulative incidence ~ 30%")
+p %>% ggsave(filename = "figures/obs_hh_risk2.jpg")
 
 
 p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/sims) %>%
@@ -151,8 +151,8 @@ p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with predicted source of infection", 
-       subtitle="Household relative risk = 5, Cumulative incidence ~ 30%")
-p %>% ggsave(filename = "figures/pred_hh_risk5.jpg")
+       subtitle="Household relative risk = 2, Cumulative incidence ~ 30%")
+p %>% ggsave(filename = "figures/pred_hh_risk2.jpg")
 
 
 inf_type <- inf_type %>% group_by(i, month)
@@ -167,7 +167,7 @@ p <- inf_type_check %>% ggplot(aes(month, count, color=name, shape=value, group=
   scale_shape(name="Source of infection") + 
   scale_x_continuous("Time (months)") +
   scale_y_continuous("Number of household infections") 
-p %>% ggsave(filename = "figures/hh_risk5_classification.jpg")
+p %>% ggsave(filename = "figures/hh_risk2_classification.jpg")
 
 
 # compare observed and predicted fraction of cases with prior household infection

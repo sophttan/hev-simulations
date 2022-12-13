@@ -5,9 +5,9 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/blended_model/cumulative_inc_5/"))
+setwd(here::here("results/blended_model/cumulative_inc_30/"))
 
-inf <- read_csv("simulated_data/75p25e_hhrisk2.csv")
+inf <- read_csv("simulated_data/25p75e_hhrisk5.csv")
 
 find_secondary_and_susceptible <- function(inf) {
   inf <- inf %>% arrange(i, HH, time) %>% group_by(i, HH) %>% 

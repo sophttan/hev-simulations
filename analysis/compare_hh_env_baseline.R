@@ -2,7 +2,7 @@ rm(list=ls())
 gc()
 library(tidyverse)
 
-setwd(here::here("results/separate_models/cumulative_inc_5/"))
+setwd(here::here("results/separate_models/cumulative_inc_30/"))
 #hh1 <- read_csv("simulated_data/hh_risk1.csv")
 hh2 <- read_csv("simulated_data/hh_risk2.csv")
 hh5 <- read_csv("simulated_data/hh_risk5.csv")
@@ -39,7 +39,7 @@ p <- inf_type %>% ggplot(aes(month)) +
                      breaks=c("Environmental transmission only",
                               "Household relative risk = 2","Household relative risk = 5")) +
   theme(legend.title = element_blank()) +
-  labs(title="Comparison of models at 5% cumulative incidence")
+  labs(title="Comparison of models at 30% cumulative incidence")
 p %>% ggsave(filename = "figures/comparison.jpg")
 
 

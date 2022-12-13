@@ -86,10 +86,10 @@ SEIR_blend <- function(d, res, rr, b_hh, b_e, inc, inf) {
   return(res)
 }
 
-rr <- 2
-beta_hh <- 0.055
-beta_env <- 0.0003
-sims <- 100
+rr <- 5
+beta_hh <- 0.0082
+beta_env <- 0.00079
+sims <- 1000
 num_hh <- rep(0, sims)
 
 for (i in 1:sims) {
@@ -117,7 +117,7 @@ inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
 (inf_type %>% nrow())/sims
 inf_type %>% group_by(Type) %>% summarise(n=n()/nrow(.)) 
 
-write_csv(inf_type, "simulated_data/75p25e_hhrisk2.csv")
+write_csv(inf_type, "simulated_data/25p75e_hhrisk5.csv")
 
 # compare observed and predicted fraction of cases with prior household infection
 (inf_type %>% 
@@ -139,9 +139,9 @@ p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with known source of infection", 
-       subtitle="Household relative risk = 2\n75:25 ratio of transmission from person-person contact:environment\nCumulative incidence ~ 30%")
+       subtitle="Household relative risk = 5\n25:75 ratio of transmission from person-person contact:environment\nCumulative incidence ~ 30%")
 p
-p %>% ggsave(filename = "figures/75p25e_hhrisk2_obs.jpg")
+p %>% ggsave(filename = "figures/25p75e_hhrisk5_obs.jpg")
 
 p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/sims) %>%
   ggplot() + geom_line(aes(month, count, group=has_hh, color=has_hh)) + 
@@ -151,6 +151,7 @@ p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with predicted source of infection", 
-       subtitle="Household relative risk = 2\n75:25 ratio of transmission from person-person contact:environment\nCumulative incidence ~ 30%")
+       subtitle="Household relative risk = 5\n25:75 ratio of transmission from person-person contact:environment\nCumulative incidence ~ 30%")
 p
-p %>% ggsave(filename = "figures/75p25e_hhrisk2_pred.jpg")
+p %>% ggsave(filename = "figures/25p75e_hhrisk5_pred.jpg")
+
