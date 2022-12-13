@@ -3,7 +3,7 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/separate_models/cumulative_inc_10/"))
+setwd(here::here("results/separate_models/cumulative_inc_30/"))
 
 time <- 52*7 # num days to simulate (12 months total)
 months <- rep(1:13, each=30)[1:time]
@@ -97,8 +97,8 @@ SEIR <- function(rr, b, inc, inf) {
 #   group_by(time) %>% summarise(inf=sum(value)) %>% ggplot(aes(time, inf)) + geom_line()
 
 rr <- 5
-beta <- 0.07
-sims <- 1000
+beta <- 0.087
+sims <- 100
 num_hh <- rep(0, sims)
 
 for (i in 1:sims) {
@@ -139,7 +139,7 @@ p <- inf_type %>% group_by(month, Type) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with known source of infection", 
-       subtitle="Household relative risk = 5, Cumulative incidence ~ 10%")
+       subtitle="Household relative risk = 5, Cumulative incidence ~ 30%")
 p %>% ggsave(filename = "figures/obs_hh_risk5.jpg")
 
 
@@ -151,7 +151,7 @@ p <- inf_type %>% group_by(month, has_hh) %>% summarise(count=n()/sims) %>%
   scale_x_continuous("Time (months)") + 
   scale_y_continuous("Incidence (number of new infections)") + 
   labs(title="Incidence over time with predicted source of infection", 
-       subtitle="Household relative risk = 5, Cumulative incidence ~ 10%")
+       subtitle="Household relative risk = 5, Cumulative incidence ~ 30%")
 p %>% ggsave(filename = "figures/pred_hh_risk5.jpg")
 
 
