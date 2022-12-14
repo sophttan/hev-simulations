@@ -87,8 +87,8 @@ SEIR_blend <- function(d, res, rr, b_hh, b_e, inc, inf) {
 }
 
 rr <- 5
-beta_hh <- 0.0082
-beta_env <- 0.00079
+beta_hh <- 0.0083
+beta_env <- 0.00078
 sims <- 1000
 num_hh <- rep(0, sims)
 
