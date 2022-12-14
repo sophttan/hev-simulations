@@ -13,7 +13,7 @@ Individuals can be infected from the community ( $I_{c,t}$ = number of current i
 
 $$risk_{c} = \frac{\beta_{pp}I_{c,t}}{(1000-n)}$$
 
-or from household contacts ($rr$ = household relative risk):   
+or from household contacts ( $rr$ = household relative risk):   
 
 $$risk_{h} = \frac{rr\beta_{pp}I_{i,t}}{(n-1)}$$ 
 
