@@ -29,6 +29,8 @@ $$P(\text{no secondary infection in household member }j) = (1-risk_{e})^{7}$$
 
 
 ### Combined person-person and environmental transmission
+Individuals can be infected through person-person contact or through environmental transmission:
+
 $$\text{risk of infection} = risk_{h}+risk_{c}+risk_{e}-risk_{h}risk_{c}-risk_{c}risk_{e}-risk_{h}risk_{e}+risk_{h}risk_{c}risk_{e}$$
 
 $$P(\text{no secondary infection in household member }j) = (1-\text{risk of infection})^{7}$$ 
