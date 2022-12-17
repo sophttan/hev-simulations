@@ -1,7 +1,7 @@
 # Analytical solutions for HEV simulations
 
 ## General approach
-Find the theoretical probability of any secondary infection among susceptible household members $j=1...S_{i,t}$ in a household with $n$ total members given that there is 1 reported infection in household $i$ at time $t$.  
+Find the theoretical probability of secondary infection among susceptible household members $j=1...S_{i,t}$ in a household with $n$ total members given that there is 1 reported infection in household $i$ at time $t$.  
 
 $$P(\text{any secondary infection in household i}) = 1 - P(\text{no secondary infection in household } i)$$
 
@@ -25,8 +25,9 @@ Individuals can only be infected through contact with a contaminated environment
 
 $$risk_{e} = \beta_{e}$$  
 
-$$P(\text{no secondary infection in household member }j) = (1-risk_{e})^{7}$$ 
+$$P(\text{no secondary infection in household member }j) = (1-risk_{e})^{38}$$ 
 
+$$P(\text{any secondary infection in household i}) = 1-(1-risk_{e})^{38}$$
 
 ### Combined person-person and environmental transmission
 Individuals can be infected through person-person contact or through environmental transmission:
