@@ -31,7 +31,7 @@ Individuals can only be infected through contact with a contaminated environment
 
 $$risk_{e} = \beta_{e}$$  
 
-$$P(\text{no secondary infection in household member }j) = (1-risk_{e})^{38}$$ 
+$$P(\text{no secondary infection}) = \prod_{t=1}^{38} (1-risk_{e}) = (1-risk_{e})^{38}$$ 
 
 $$P(\text{secondary infection}) = 1-(1-risk_{e})^{38}$$
 
