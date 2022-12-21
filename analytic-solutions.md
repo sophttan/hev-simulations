@@ -15,7 +15,7 @@ $$risk_{c} = \frac{\beta_{p}I_{c,t}}{(1000-n)}$$
 
 or from household contacts ( $I_{i,t}$ = number of current infections in the household on day $t$ and $r$ = household relative risk):   
 
-$$risk_{h} = \frac{r\beta_{p}I_{i,t}}{(n)}$$ 
+$$risk_{h} = \frac{r\beta_{p}I_{i,t}}{n}$$ 
 
 $$P(\text{no secondary infection on day }t) = 1-(risk_{h}+risk_{c}-risk_{h}risk_{c})$$  
 
