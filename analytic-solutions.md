@@ -31,7 +31,7 @@ Ex. Assume 1 infectious person in a household, no prior infections in the househ
 
 $$P(\text{secondary infection}) = 1 - (1-(risk_{h}+risk_{c}-risk_{h}risk_{c}))^{7} = 0.25$$    
 
-Ex. Assume there are 2 infectious people in the population, 1 in household 1 and 1 in household 2, at 2 months in an outbreak. Assume there have been no other notable infections in the population. Estimate the probability of seeing at least 1 household infection in household 1.
+Ex. Assume there are 2 infectious people in the population, 1 in household 1 and 1 in household 2, at 2 months in an outbreak. Assume there have been no other notable infections in the population. Estimate the probability of seeing at least 1 household infection in household 1 at 3 months.
 
 $$n = \text{average household size} = 4.5$$
 $$\beta_{p} = 0.09$$
