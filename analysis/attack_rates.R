@@ -5,15 +5,18 @@ gc()
 library(tidyverse)
 library(purrr)
 
-setwd(here::here("results/blended_model/cumulative_inc_30/"))
+setwd(here::here("results/separate_models/cumulative_inc_10/"))
 
-inf <- read_csv("simulated_data/25p75e_hhrisk5.csv")
+inf1 <- read_csv("simulated_data/environmental.csv")
+inf2 <- read_csv("simulated_data/hh_75h25c.csv")
+inf3 <- read_csv("simulated_data/hh_50h50c.csv")
+inf4 <- read_csv("simulated_data/hh_25h75c.csv")
 
 find_secondary_and_susceptible <- function(inf) {
   inf <- inf %>% arrange(i, HH, time) %>% group_by(i, HH) %>% 
     mutate(otherinfs=list(time), inf=1:n()) %>% 
     rowwise() %>% 
-    mutate(secondaryinfs = list(otherinfs[unlist(otherinfs)-time<=45 & unlist(otherinfs)-time > 7])) %>%
+    mutate(secondaryinfs = list(otherinfs[unlist(otherinfs)-time < 45 & unlist(otherinfs)-time > 7])) %>%
     select(!otherinfs)
   
   inf_unnest <- inf %>% unnest(secondaryinfs, keep_empty = T) %>% ungroup()
@@ -65,8 +68,37 @@ find_secondary_and_susceptible <- function(inf) {
   final
 }
 
-d <- find_secondary_and_susceptible(inf)
-d <- d %>% mutate(attackrate=secondaryinfs/susceptible)
-d %>% filter(susceptible>0) %>% group_by(i, HH) %>% summarise(attackrate=mean(attackrate,na.rm=T)) %>% 
-  group_by(i) %>% summarise(attackrate=mean(attackrate,na.rm=T)) %>% summary()
+d1 <- find_secondary_and_susceptible(inf1) %>% mutate(attackrate=secondaryinfs/susceptible) 
+d2 <- find_secondary_and_susceptible(inf2) %>% mutate(attackrate=secondaryinfs/susceptible) 
+d3 <- find_secondary_and_susceptible(inf3) %>% mutate(attackrate=secondaryinfs/susceptible) 
+d4 <- find_secondary_and_susceptible(inf4) %>% mutate(attackrate=secondaryinfs/susceptible) 
+
+attack_rate <- function(d) {
+  (d %>% filter(susceptible>0) %>% group_by(i) %>% 
+    summarise(attackrate=mean(attackrate,na.rm=T)))$attackrate %>% mean()
+}
+
+d1 %>% attack_rate()
+d2 %>% attack_rate()
+d3 %>% attack_rate()
+d4 %>% attack_rate()
+
+attack_rate_month <- function(d) {
+  d %>% filter(susceptible>0) %>% group_by(i, month) %>% 
+    summarise(attackrate=mean(attackrate,na.rm=T)) %>% 
+    group_by(month) %>% summarise(attackrate=mean(attackrate))  
+}
+
+ggplot() + 
+  geom_line(data = attack_rate_month(d1), aes(month, attackrate, color="Environmental transmission only")) + 
+  geom_line(data = attack_rate_month(d2), aes(month, attackrate, color="75% household transmission")) + 
+  geom_line(data = attack_rate_month(d3), aes(month, attackrate, color="50% household transmission")) + 
+  geom_line(data = attack_rate_month(d4), aes(month, attackrate, color="25% household transmission")) + 
+  scale_y_continuous("Attack rate", expand=c(0.01,0)) + 
+  scale_x_continuous("Time (months)", breaks=1:13) + 
+  scale_color_brewer(palette="Dark2", direction=-1, name=element_blank()) + 
+  theme(panel.grid.minor = element_blank())
+
+
+1-(1-0.0011)**((mean(3:6)-1)*7)  
 
