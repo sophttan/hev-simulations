@@ -37,7 +37,8 @@ SEIR_environment <- function(b, inc, inf) {
                   I=0, Icounter=0, 
                   R=0, 
                   inc=0, inf=0) # variable number of households (size 3-6), total pop of 1000
-  res <- d[,1:3] %>% mutate(Itype=NA)
+  
+  res <- d[,1:3] %>% mutate(Type=NA, time=NA)
   
   for (i in 1:time) {
     recovered <- d$inf>0 & d$Icounter==d$inf
@@ -56,8 +57,6 @@ SEIR_environment <- function(b, inc, inf) {
       d$Ecounter[new_inf] <- 0 
     }
     
-    res <- res %>% cbind(I=d$I)
-    
     risk <- b*d$HH_S
     
     new_exposed <- rbinom(length(hh_size), 1, risk)
@@ -68,6 +67,8 @@ SEIR_environment <- function(b, inc, inf) {
       exposure <- rnorm(sum(new_exposed, na.rm=T), mean=inc, sd=2) %>% round() 
       lag <- sample(x = 0:6, size=sum(new_exposed, na.rm=T), replace=T)
       d$inc[new_exposed==1] <- exposure+lag
+      
+      res <- res %>% mutate(time = ifelse(new_exposed==1, i, time))
     }
     
     d$Ecounter[d$E==1] <- d$Ecounter[d$E==1] + 1
@@ -83,33 +84,37 @@ SEIR_environment <- function(b, inc, inf) {
 beta <- 0.00016
 sims <- 1000
 num_hh <- rep(0, sims)
+inc <- rep(0, sims)
 
 for (i in 1:sims) {
   final <- SEIR_environment(beta, num_weeks_inc, num_weeks_inf)
   num_hh[i] <- max(final$HH)
   
   # restructure table
-  names(final) <- c("No", "HHsize", "HH", "Type", 1:time)
-  f <- final %>% pivot_longer(cols = 5:ncol(.), names_to = "time") %>% mutate(time=as.numeric(time))
-  f <- f %>% group_by(No, value) %>% summarise_all(first) %>% filter(value==1) 
-  f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>% 
-    ungroup() %>% rowwise() %>% 
-    mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>% 
+  f <- final %>% filter(!is.na(time))
+  f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>%
+    ungroup() %>% rowwise() %>%
+    mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>%
     select(c(time, HHsize, HH, Type, has_hh))
   
+  if(nrow(f)==0) {
+    next
+  }
+  
   if(i==1){
-    if(nrow(f)==0) {next}
     inf_type <- cbind(i=i, f)
   }else{
-    if(nrow(f)==0) {next}
     inf_type <- rbind(inf_type, cbind(i=i, f))
   }
+  
+  inc[i] <- nrow(f)/1000
 }
 
-inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
+inf_type %>% head()
+res <- data.frame(i=1:sims, inc=inc)
 
-# average total infections
-(inf_type %>% nrow())/sims
+# average infections
+res$inc %>% mean()
 
 write_csv(inf_type, "simulated_data/environmental_fixedhhrisk_lag.csv")
 
