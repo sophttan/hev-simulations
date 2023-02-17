@@ -118,45 +118,44 @@ SEIR <- function(bh, bc, inc, inf) {
 
 
 #### Calibrating parameters - optimizing function #### 
-dist_to_target <- function(params,target){
-  # Function to compute sum of square scaled differences between simulation output
-  # and targets
-  # Targets are cumulative incidence (5%, 10%, 30%) and proportion of household infections (25%, 50%, 75%)
-  
-  betah <- params[1]
-  betac <- params[2]
-
-  state <- SEIR(bh=betah, bc=betac, num_weeks_inc, num_weeks_inf)
-  state <- state %>% filter(!is.na(time))
-
-  incidence <- nrow(state)/1000*100
-  
-  prop_types <- state %>% filter(!Type %>% is.na()) %>% group_by(Type) %>% summarise(prop=n()/nrow(.))
-  prop_hh <- (prop_types$prop[prop_types$Type=="H"]) * 100
-
-  outvector <- (c(incidence, prop_hh)-target)/target
-  
-  return(sum((outvector)**2)*100)
-}
+# dist_to_target <- function(params,target){
+#   # Function to compute sum of square scaled differences between simulation output
+#   # and targets
+#   # Targets are cumulative incidence (5%, 10%, 30%) and proportion of household infections (25%, 50%, 75%)
+#   
+#   betah <- params[1]
+#   betac <- params[2]
+# 
+#   state <- SEIR(bh=betah, bc=betac, num_weeks_inc, num_weeks_inf)
+#   state <- state %>% filter(!is.na(time))
+# 
+#   incidence <- nrow(state)/1000*100
+#   
+#   prop_types <- state %>% filter(!Type %>% is.na()) %>% group_by(Type) %>% summarise(prop=n()/nrow(.))
+#   prop_hh <- (prop_types$prop[prop_types$Type=="H"]) * 100
+# 
+#   outvector <- (c(incidence, prop_hh)-target)/target
+#   
+#   return(sum((outvector)**2)*100)
+# }
 
 
 #### Calibration ####
-goal <- c(10, 25)
-fit <- StoSOO(c(NA, NA),
-              function(x){return(dist_to_target(x,goal))},
-              lower=c(0,0),upper=c(15,2),nb_iter=1000,
-              control = list(verbose = 0, type = "sto", max = FALSE, light = FALSE))
-cat(c("Params:",fit$par,"\n"))
-cat(c("Value:",fit$value,"\n"))
+# goal <- c(10, 25)
+# fit <- StoSOO(c(NA, NA),
+#               function(x){return(dist_to_target(x,goal))},
+#               lower=c(0,0),upper=c(30,1),nb_iter=1000,
+#               control = list(verbose = 0, type = "sto", max = FALSE, light = FALSE))
+# cat(c("Params:",fit$par,"\n"))
+# cat(c("Value:",fit$value,"\n"))
 
-sims <- 1000
+sims <- 10
 num_hh <- rep(0, sims)
+inc <- rep(0, sims)
+prop_hh <- rep(0, sims)
 
-betah <- 0.1
-betac <- 0.185
-
-betah <- fit$par[1]
-betac <- fit$par[2]
+betah <- 20.6
+betac <- 0.3
 
 for (i in 1:sims) {
   final <- SEIR(betah, betac, num_weeks_inc, num_weeks_inf)
@@ -164,27 +163,47 @@ for (i in 1:sims) {
   
   # restructure table
   f <- final %>% filter(!is.na(time))
-  f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>% 
-    ungroup() %>% rowwise() %>% 
-    mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>% 
+  f <- f %>% group_by(HH) %>% mutate(day_limits = list(time)) %>%
+    ungroup() %>% rowwise() %>%
+    mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>%
     select(c(time, HHsize, HH, Type, has_hh))
   
-  if(nrow(f)==0) {next}
+  if(nrow(f)==0) {
+    prop_hh[i] <- NA
+    next
+  }
   
   if(i==1){
     inf_type <- cbind(i=i, f)
   }else{
     inf_type <- rbind(inf_type, cbind(i=i, f))
   }
+  
+  inc[i] <- nrow(f)/1000
+  prop_hh[i] <- sum(f$Type=="H"|f$Type=="B")/nrow(f)
 }
 
+inf_type %>% head()
+res <- data.frame(i=1:sims, inc=inc, prop_hh=prop_hh)
+
+# average infections
+res$inc %>% mean()
+
+# average fraction household transmission
+res$prop_hh %>% mean(na.rm=T)
+
+library(patchwork)
+p1 <- res %>% ggplot(aes(inc)) + 
+  geom_histogram() + 
+  scale_x_continuous(expand=c(0,0), limits=c(0,1)) + 
+  scale_y_continuous(expand=c(0,0))
+p2 <- res %>% ggplot(aes(prop_hh)) + 
+  geom_histogram() + 
+  scale_x_continuous(expand=c(0,0), limits=c(0,1)) + 
+  scale_y_continuous(expand=c(0,0))
+p1|p2
+
 inf_type <- inf_type %>% left_join(days_months, by=c("time"="day"))
-
-# average total infections
-(inf_type %>% group_by(i) %>% summarise(cases=n()))$cases %>% mean()
-
-# infections by transmission source
-inf_type %>% filter(!Type %>% is.na()) %>% group_by(Type) %>% summarise(prop=n()/nrow(.))
 
 # save dataset
 write_csv(inf_type, "simulated_data/hh_25h75c.csv")
