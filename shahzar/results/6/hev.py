@@ -1,6 +1,6 @@
 import numpy as np
-np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 import pandas as pd
+import timeit
 from scipy import stats
 
 time = 365
@@ -119,7 +119,7 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
 
 def metrics(results):
     state = results[~pd.isna(results['TIME'])]
-    i = state.shape[0]/1000
+    idc = state.shape[0]/1000
     
     #p_hh = np.nan
     #if i != 0:
@@ -127,85 +127,46 @@ def metrics(results):
     #return i, p_hh
     
     sar = np.nan
-    if i != 0:
+    if idc != 0:
         num_primary = np.sum(results.groupby('HH')['TIME'].sum() > 0) # households that were infected
         idx = results.groupby('HH')['TYPE'].apply(lambda x: ~np.all(x.isna()))
         num_contact = (results.groupby('HH')['SIZE'].sum()[idx]**(1/2)).sum() # total people in all those households
         sar = state[(state['TYPE'] == 'H') | (state['TYPE'] == 'B')].shape[0] / (num_contact - num_primary)
     
-    return i, sar
+    return idc, sar
 
 def score(results, target):
     return np.sum((np.array(metrics(results)) - target)**2)
 
-# Create likelihood, prior, and posterior
-def likelihood(state):
-    beta_H, beta_C = state
-    results = SEIR(beta_H, beta_C, inc, inf)
-    lik = -np.log(score(results, target))
-    
-    # Poisson likelihood
-    #lik = stats.poisson.logpmf(I_obs, I_fit).sum()
-    
-    # L1 score likelihood
-    #lik = -np.log(np.mean(abs(I_fit - I_obs)))
-    
-    # L2 score likelihood
-    #lik = -np.log(np.mean((I_fit - I_obs)**2))
-    
-    return lik
+beta_Hs = np.linspace(10, 50, 41)
+beta_Cs = np.linspace(0, 2, 41)
 
-def prior(state):
-    beta_H, beta_C = state
-    return stats.gamma.logpdf(beta_H, 10, 0.5) + stats.norm.logpdf(beta_C, 4, 8)
+cc, hh = np.meshgrid(beta_Cs, beta_Hs)
+a, b = cc.shape
 
-def posterior(state):
-    return likelihood(state) + prior(state)
+np.save('cc_5.npy', cc)
+np.save('hh_5.npy', hh)
 
-# Metropolis algorithm
+reps = 1
+sars = np.zeros((a, b))
+idcs = np.zeros((a, b))
+for i in range(a):
+    for j in range(b):
+        beta_H = hh[i][j]
+        beta_C = cc[i][j]
+        
+        t_0 = timeit.default_timer()
+        print('{}/{}'.format(i, a), j, end = '\t')
+        results = SEIR(beta_H, beta_C, inc, inf, verbose = 1)
+        idc, sar = metrics(results)
+        t_1 = timeit.default_timer()
+        print(round((t_1 - t_0), 3), end = ' ')
+        idcs[i][j] = idc
+        sars[i][j] = sar
+        
+        np.save('idcs_5.npy', idcs)
+        np.save('sars_5.npy', sars)
+        print()
 
-# Proposal function
-def q(state):
-    beta_H, beta_C = state
-    r = [beta_H**2, beta_C**2 / 0.0001]
-    v = np.array([beta_H, beta_C / 0.0001])
-    return np.maximum(stats.gamma.rvs(r, scale = 1 / v, size = 2), 1e-3)
-
-# MCMC
-def metropolis(start, num_iter):
-    best = np.zeros(2)
-    best_lik = -np.inf
-    
-    chain = np.zeros((num_iter + 1, 2))
-    chain[0] = start
-    for i in range(num_iter):
-        print(i, '\t', chain[i], end = ' ')
-        lik = likelihood(chain[i])
-        print("%0.3f" % lik, end = '\t')
-        if lik > best_lik:
-            best = chain[i]
-            best_lik = lik
-        proposal = q(chain[i])
-        print(proposal, end = ' ')
-        lik_propo = likelihood(proposal)
-        print("%0.3f" % lik_propo, end = '\t')
-        #pos = lik + prior(chain[i])
-        r = np.exp(lik_propo - lik)
-        #p = np.exp(posterior(proposal) - pos)
-        #p = np.exp(posterior(proposal) - posterior(chain[i]))
-        p = stats.uniform.rvs()
-        print("%0.3f" % r, ' ', "%0.3f" % p)
-        if p < r:
-            chain[i + 1] = proposal
-        else:
-            chain[i + 1] = chain[i]
-        np.save('chain_2.npy', chain)
-        np.save('best_2.npy', best)
-    return chain, best
-
-# Solve for optimal values via MCMC
-target = np.array([0.3, 0.25])
-
-chain, best = metropolis([30, 0.12], 1000)
-np.save('chain_2.npy', chain)
-np.save('best_2.npy', best)
+np.save('idcs_5.npy', idcs)
+np.save('sars_5.npy', sars)
