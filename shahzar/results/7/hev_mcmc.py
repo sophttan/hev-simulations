@@ -175,10 +175,8 @@ def metropolis(start, num_iter):
         
         # Get a proposed state and calculate its likelihood.
         prop = q(curr)
-        prop_lik = likelihood(prop)
-        
-        # Print the proposed state and its likelihood.
         print(prop, end = ' ')
+        prop_lik = likelihood(prop)
         print("%0.3f" % prop_lik, end = '\t')
         
         # Compute the ratio of the scores of the two states
