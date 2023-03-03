@@ -82,6 +82,8 @@ SEIR <- function(bh, bc, inc, inf) {
       d$inf[new_inf] <- random_inf
       d$E[new_inf] <- 0
       d$Ecounter[new_inf] <- 0 
+      
+      res$time[new_inf==1] <- i
     }
     
     # find total number of infectious individuals within and outside of household
@@ -104,8 +106,7 @@ SEIR <- function(bh, bc, inc, inf) {
       case_type <- case_when(new_inf_hh==1&new_inf_c==1~"B",
                              new_inf_hh==1~"H", 
                              new_inf_c==1~"C")
-      res <- res %>% mutate(Type = ifelse(!is.na(Type), Type, case_type),
-                            time = ifelse(new_exposed==1, i, time))
+      res <- res %>% mutate(Type = ifelse(!is.na(Type), Type, case_type))
     }
     
     d$Ecounter[d$E==1] <- d$Ecounter[d$E==1] + 1
@@ -149,13 +150,14 @@ SEIR <- function(bh, bc, inc, inf) {
 # cat(c("Params:",fit$par,"\n"))
 # cat(c("Value:",fit$value,"\n"))
 
-sims <- 10
+sims <- 1000
 num_hh <- rep(0, sims)
 inc <- rep(0, sims)
 prop_hh <- rep(0, sims)
 
-betah <- 20.6
-betac <- 0.3
+# test out fitted parameters
+betah <- 26.210651842940592
+betac <- 0.11921066815772194
 
 for (i in 1:sims) {
   final <- SEIR(betah, betac, num_weeks_inc, num_weeks_inf)
@@ -168,7 +170,7 @@ for (i in 1:sims) {
     mutate(has_hh = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7)) %>%
     select(c(time, HHsize, HH, Type, has_hh))
   
-  if(nrow(f)==0) {
+  if(nrow(f)==1) {
     prop_hh[i] <- NA
     next
   }
@@ -195,11 +197,11 @@ res$prop_hh %>% mean(na.rm=T)
 library(patchwork)
 p1 <- res %>% ggplot(aes(inc)) + 
   geom_histogram() + 
-  scale_x_continuous(expand=c(0,0), limits=c(0,1)) + 
+  scale_x_continuous(expand=c(0.05,0)) + 
   scale_y_continuous(expand=c(0,0))
 p2 <- res %>% ggplot(aes(prop_hh)) + 
   geom_histogram() + 
-  scale_x_continuous(expand=c(0,0), limits=c(0,1)) + 
+  scale_x_continuous(expand=c(0.05,0), limits=c(0,1)) + 
   scale_y_continuous(expand=c(0,0))
 p1|p2
 
