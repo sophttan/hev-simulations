@@ -150,7 +150,7 @@ SEIR <- function(bh, bc, inc, inf) {
 # cat(c("Params:",fit$par,"\n"))
 # cat(c("Value:",fit$value,"\n"))
 
-sims <- 1000
+sims <- 10
 num_hh <- rep(0, sims)
 inc <- rep(0, sims)
 prop_hh <- rep(0, sims)
@@ -158,6 +158,8 @@ prop_hh <- rep(0, sims)
 # test out fitted parameters
 betah <- 26.210651842940592
 betac <- 0.11921066815772194
+
+inf_type <- NULL
 
 for (i in 1:sims) {
   final <- SEIR(betah, betac, num_weeks_inc, num_weeks_inf)
@@ -172,24 +174,19 @@ for (i in 1:sims) {
   
   if(nrow(f)==1) {
     prop_hh[i] <- NA
-    next
-  }
-  
-  if(i==1){
-    inf_type <- cbind(i=i, f)
   }else{
-    inf_type <- rbind(inf_type, cbind(i=i, f))
+    prop_hh[i] <- sum(f$Type=="H"|f$Type=="B",na.rm=T)/nrow(f)
   }
   
+  inf_type <- rbind(inf_type, cbind(i=i, f))
   inc[i] <- nrow(f)/1000
-  prop_hh[i] <- sum(f$Type=="H"|f$Type=="B")/nrow(f)
 }
 
 inf_type %>% head()
 res <- data.frame(i=1:sims, inc=inc, prop_hh=prop_hh)
 
 # average infections
-res$inc %>% mean()
+res$inc %>% summary()
 
 # average fraction household transmission
 res$prop_hh %>% mean(na.rm=T)
