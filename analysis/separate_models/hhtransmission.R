@@ -150,7 +150,7 @@ SEIR <- function(bh, bc, inc, inf) {
 # cat(c("Params:",fit$par,"\n"))
 # cat(c("Value:",fit$value,"\n"))
 
-sims <- 10
+sims <- 1000
 num_hh <- rep(0, sims)
 inc <- rep(0, sims)
 prop_hh <- rep(0, sims)
