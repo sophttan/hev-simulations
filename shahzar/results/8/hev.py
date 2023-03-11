@@ -2,6 +2,7 @@ import numpy as np
 np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 import pandas as pd
 from scipy import stats
+import timeit
 
 time = 365
 inc = 28
@@ -35,6 +36,8 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
     # R: recovered status
     # INC: incubation period
     # INF: infectious period
+    # S_num: number of susceptible people in household when infectious period begins
+    # I_num: number of people that this person infected over the infectious period
     data = pd.DataFrame({'ID': range(1000),
                          'SIZE': np.repeat(hh_size, repeats = hh_size),
                          'HH': np.repeat(range(len(hh_size)), repeats = hh_size),
@@ -45,15 +48,18 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
                          'I_count': np.zeros(1000),
                          'R': np.zeros(1000),
                          'INC': np.append(np.round(stats.norm.rvs(inc, 2)), np.zeros(999)),
-                         'INF': np.zeros(1000),
+                         'INF': np.zeros(1000)
                         })
     
     # Create frame for storing results
     results = data.loc[:, 'ID':'HH']
     results['TYPE'] = np.nan
-    results.loc[0, 'TYPE'] = '0'
+    results.loc[0, 'TYPE'] = 'I' # index case is Type 0 
     results['TIME'] = np.nan
-    results.loc[0, 'TIME'] = 0
+    #results['TIME_I'] = np.nan
+    #results['TIME_E'] = np.nan
+    results['S_num'] = np.nan
+    results['I_num'] = 0
     
     for t in range(time):
         if verbose:
@@ -77,7 +83,20 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
             data.loc[new_inf, 'INF'] = random_inf
             data.loc[new_inf, 'E'] = 0
             data.loc[new_inf, 'E_count'] = 0
+            
+            # If newly infected and there isn't already a time recorded, then update with the time t.
+            results['TIME'].where(~(new_inf == 1) | ~pd.isna(results['TIME']), t, inplace = True)
+            #results['TIME_I'].where(~(new_inf == 1) | ~pd.isna(results['TIME_I']), t, inplace = True)
+            
+            # Get the number of susceptible people in each household
+            S_num = data.groupby('HH').sum()
 
+            # Get the households of the newly infectious people
+            hh_idx = data.loc[new_inf, :]['HH']
+            
+            # Save in results the number of susceptible people
+            results.loc[new_inf, 'S_num'] = S_num.loc[hh_idx, 'S'].values
+            
         # I_H is the number of infections in each household.
         # I_C is the number of infections outside a given household.
         I_H = data.groupby('HH').sum()['I']
@@ -105,12 +124,26 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
             random_inc = np.round(stats.norm.rvs(inc, 2, size = num_new_exposed))
             data.loc[new_exposed, 'E'] = 1
             data.loc[new_exposed, 'INC'] = random_inc
-
-            results['TYPE'].where(~((new_inf_H == 1) & (new_inf_C == 1)) | ~pd.isna(results['TYPE']), 'B', inplace = True)
+            
+            #print(np.sum( (new_inf_H == 1) & (~pd.isna(results['TYPE'])) ))
+            # The NA checks may not be necessary, since S = 0 for anyone who already has been assigned a TYPE
             results['TYPE'].where(~(new_inf_H == 1) | ~pd.isna(results['TYPE']), 'H', inplace = True)
             results['TYPE'].where(~(new_inf_C == 1) | ~pd.isna(results['TYPE']), 'C', inplace = True)
-            results['TIME'].where(~(new_exposed == 1) | ~pd.isna(results['TIME']), t, inplace = True)
-        
+            #results['TIME_E'].where(~(new_exposed == 1) | ~pd.isna(results['TIME_E']), t, inplace = True)
+            
+            # Number of new infections in each household
+            rr = results.loc[new_inf_H == 1, :].groupby('HH')['TYPE'].count()
+            
+            # Get individuals with the smallest infectious counts
+            ids = data[data['I'] == 1].groupby('HH').min()['ID']
+            
+            # Increase I_num by the amount of people in household that got a H-type infection
+            res_idx = results['ID'].isin(ids) & (results['HH'].isin(rr.index))
+            results.loc[res_idx, 'I_num'] += rr.values
+            
+            # After the above analysis, assign 'B' to people who were infected by both.
+            results['TYPE'].where(~((new_inf_H == 1) & (new_inf_C == 1)) | ~pd.isna(results['TYPE']), 'B', inplace = True)
+            
         data.loc[data['E'] == 1, 'E_count'] += 1
         data.loc[data['I'] == 1, 'I_count'] += 1
         data.loc[data['E'] == 1, 'S'] = 0
@@ -123,99 +156,101 @@ def metrics(results):
     
     sar = np.nan
     if idc != 0:
-        num_primary = np.sum(results.groupby('HH')['TIME'].sum() > 0) # households that were infected
-        idx = results.groupby('HH')['TYPE'].apply(lambda x: ~np.all(x.isna()))
-        num_contact = (results.groupby('HH')['SIZE'].sum()[idx]**(1/2)).sum() # total people in all those households
-        sar = state[(state['TYPE'] == 'H') | (state['TYPE'] == 'B')].shape[0] / (num_contact - num_primary)
+        sar = np.mean(results['I_num'] / results['S_num'])
     
     return idc, sar
 
 def score(results, target):
     return np.sum((np.array(metrics(results)) - target)**2)
 
-# Create likelihood from the score of the state
-def likelihood(state):
-    beta_H, beta_C = state
+
+reps = [10, 50, 100, 250, 500, 750, 1000]
+
+## FIRST SET ##
+num = 1
+beta_H = 30
+beta_C = 0.12
+
+tocs = []
+for rep in reps:
+    idcs = np.zeros(rep)
+    sars = np.zeros(rep)
     
-    liks = [None] * N
-    for i in range(N):
-        results = SEIR(beta_H, beta_C, inc, inf)
-        liks[i] = -np.log(score(results, target))
-    return np.mean(liks)
+    t_0 = timeit.default_timer()
+    print('/{}'.format(rep - 1), end = '\t')
+    for i in range(rep):
+        print(i, end = ' ')
+        results = SEIR(beta_H, beta_C, inc, inf, verbose = 0)
+        idc, sar = metrics(results)
 
-#### Metropolis algorithm ####
+        idcs[i] = idc
+        sars[i] = sar
 
-# Proposal function
-def q(state):
-    beta_H, beta_C = state
-    r = [beta_H**2, beta_C**2 / 0.0001]
-    v = np.array([beta_H, beta_C / 0.0001])
-    return np.maximum(stats.gamma.rvs(r, scale = 1 / v, size = 2), 1e-3)
-
-# MCMC
-def metropolis(start, num_iter):
-    chain = np.zeros((num_iter + 1, 2))
-    liks = np.zeros((num_iter + 1, 2))
+        np.save('idcs_{}_{}.npy'.format(num, rep), idcs)
+        np.save('sars_{}_{}.npy'.format(num, rep), sars)
+    t_1 = timeit.default_timer()
+    tocs += [t_1 - t_0]
     
-    # Initialize current state.
-    curr = start
-    curr_lik = likelihood(curr)
+    print(tocs[-1])
+    np.save('tocs_{}.npy'.format(num), tocs)
     
-    # Initialize best state.
-    best = curr
-    best_lik = curr_lik
-    for i in range(num_iter):
-        # Save the current state and its likelihood.
-        chain[i] = curr
-        liks[i] = curr_lik
-        
-        # Print current state and likelihood.
-        print(i, '\t', curr, end = ' ')
-        print("%0.3f" % curr_lik, end = '\t')
-        
-        # Get a proposed state and calculate its likelihood.
-        prop = q(curr)
-        print(prop, end = ' ')
-        
-        prop_lik = likelihood(prop)
-        print("%0.3f" % prop_lik, end = '\t')
-        
-        # Compute the ratio of the scores of the two states
-        # and flip a coin.
-        r = np.exp(prop_lik - curr_lik)
-        p = stats.uniform.rvs()
-        print("%0.3f" % r, ' ', "%0.3f" % p)
-        # Transition if the proposed state is better or
-        # if the coin flip succeeds.
-        if p < r:
-            curr = prop
-            curr_lik = prop_lik
-            
-            # If the new likelihood is better than the
-            # best we've seen so far, replace the best.
-            if curr_lik > best_lik:
-                best = curr
-                best_lik = curr_lik
-        
-        # Save the chain, best state, and likelihoods
-        # so far.
-        np.save('chain.npy', chain)
-        np.save('liks.npy', liks)
-        np.save('best.npy', best)
+## SECOND SET ##
+num = 2
+beta_H = 23
+beta_C = 0.1
+
+tocs = []
+print()
+for rep in reps:
+    idcs = np.zeros(rep)
+    sars = np.zeros(rep)
     
-    chain[num_iter] = curr
-    liks[num_iter] = curr_lik
+    t_0 = timeit.default_timer()
+    print('/{}'.format(rep - 1), end = '\t')
+    for i in range(rep):
+        print(i, end = ' ')
+        results = SEIR(beta_H, beta_C, inc, inf, verbose = 0)
+        idc, sar = metrics(results)
 
-    np.save('chain.npy', chain)
-    np.save('liks.npy', liks)
-    np.save('best.npy', best)
-    return chain, liks, best
+        idcs[i] = idc
+        sars[i] = sar
 
-# Solve for optimal values via MCMC
-target = np.array([0.3, 0.25]) # target values
-N = 5 # number of times over which to average likelihood
+        np.save('idcs_{}_{}.npy'.format(num, rep), idcs)
+        np.save('sars_{}_{}.npy'.format(num, rep), sars)
+    t_1 = timeit.default_timer()
+    tocs += [t_1 - t_0]
+    
+    print(tocs[-1])
+    np.save('tocs_{}.npy'.format(num), tocs)
+    
+## THIRD SET ##
+num = 3
+beta_H = 11
+beta_C = 0.05
 
-chain, liks, best = metropolis([30, 0.12], 1000)
-np.save('chain.npy', chain)
-np.save('liks.npy', liks)
-np.save('best.npy', best)
+tocs = []
+print()
+for rep in reps:
+    idcs = np.zeros(rep)
+    sars = np.zeros(rep)
+    
+    t_0 = timeit.default_timer()
+    print('/{}'.format(rep - 1), end = '\t')
+    for i in range(rep):
+        print(i, end = ' ')
+        results = SEIR(beta_H, beta_C, inc, inf, verbose = 0)
+        idc, sar = metrics(results)
+
+        idcs[i] = idc
+        sars[i] = sar
+
+        np.save('idcs_{}_{}.npy'.format(num, rep), idcs)
+        np.save('sars_{}_{}.npy'.format(num, rep), sars)
+    t_1 = timeit.default_timer()
+    tocs += [t_1 - t_0]
+    
+    print(tocs[-1])
+    np.save('tocs_{}.npy'.format(num), tocs)
+
+
+
