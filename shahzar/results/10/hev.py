@@ -1,5 +1,6 @@
 import numpy as np
-np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
+np.set_printoptions(precision = 3)
+#np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 import pandas as pd
 from scipy import stats
 import timeit
@@ -181,11 +182,13 @@ for i in range(a):
         beta_H = hh[i][j]
         beta_C = cc[i][j]
         
-        idc_list = np.array([None] * reps)
-        sar_list = np.array([None] * reps)
+        idc_list = np.repeat(np.nan, reps)
+        sar_list = np.repeat(np.nan, reps)
         for k in range(reps):
             t_0 = timeit.default_timer()
-            print('{}/{}'.format(beta_H, 35), '\t', '{}/{}'.format(beta_C, 1), '\t', '{}/{}'.format(k, reps), end = '\t')
+            print('{0:0.1f}/{1}'.format(beta_H, 35), '\t', 
+                  '{0:0.2f}/{1}'.format(beta_C, 1), '\t', 
+                  '{}/{}'.format(k + 1, reps), end = '\t')
             results = SEIR(beta_H, beta_C, inc, inf, verbose = 0)
             idc, sar = metrics(results)
             idc_list[k] = idc

@@ -1,0 +1,9 @@
+Grid search for parameters.
+
+beta_Hs = np.linspace(5, 35, 61)
+beta_Cs = np.linspace(0, 1, 21)
+
+reps = 25
+sars = np.zeros((a, b, reps))
+idcs = np.zeros((a, b, reps))
+tocs = np.zeros(a * b * reps)
