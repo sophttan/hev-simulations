@@ -11,7 +11,7 @@ create_hh <- function() {
   
   # Keep households such that total population is < 1000.
   hh_size <- hh_size[which(cumsum(hh_size) < pop)]
-
+  
   leftover <- pop - sum(hh_size)
   if (leftover < 3) {
     hh <- 1:length(hh_size)
@@ -25,7 +25,7 @@ create_hh <- function() {
 
 SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   hh_size = create_hh()
-
+  
   # Create frame for running the simulation
   # ID: ID of individual
   # SIZE: size of individual's household
@@ -60,7 +60,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   # I_num: number of people in household that this individual infected over their infectious period
   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
   results$TYPE[1] = '0'
-    
+  
   for(t in 1:time) {
     if (verbose) {
       if (t %% 10 == 0) {
@@ -72,9 +72,9 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
     # period is now recovered.
     recovered <- (data$INF > 0) & (data$I_count == data$INF)
     if(sum(recovered, na.rm = T) > 0) {
-        data$R[recovered] <- 1
-        data$I[recovered] <- 0
-        data$I_count[recovered] <- 0 
+      data$R[recovered] <- 1
+      data$I[recovered] <- 0
+      data$I_count[recovered] <- 0 
     }
     
     # Anyone who has been incubating for as many days as their incubation
@@ -90,7 +90,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       # Remove exposure status and exposure count.
       data$E[new_inf] <- 0
       data$E_count[new_inf] <- 0 
-
+      
       # Record time at which infectious period starts.
       results$TIME[new_inf == 1] <- t
       
@@ -103,20 +103,20 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
     # I_H is the number of infections inside each household.
     # I_C is the number of infections outside each household.
     I_data <- data %>% group_by(HH) %>% 
-                       mutate(I_H = sum(I)) %>% 
-                       ungroup() %>% 
-                       mutate(I_C = sum(I) - I_H)
-
+      mutate(I_H = sum(I)) %>% 
+      ungroup() %>% 
+      mutate(I_C = sum(I) - I_H)
+    
     # Calculate household risk and community risk.
     risk_H <- beta_H * data$S * I_data$I_H / pop
     risk_C <- beta_C * data$S * I_data$I_C / pop
-
+    
     # Each individual is infected from their household or 
     # community independently with probabilities risk_H
     # and risk_C.
     new_inf_H <- rbinom(nrow(data), 1, risk_H)
     new_inf_C <- rbinom(nrow(data), 1, risk_C)
-        
+    
     new_exposed = (new_inf_H == 1) | (new_inf_C == 1)
     num_new_exposed = sum(new_exposed, na.rm = T)
     if (sum(new_exposed) > 0) {
@@ -124,19 +124,19 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       data$E[new_exposed] <- 1
       random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
       data$INC[new_exposed] <- random_inc
-            
+      
       # Remove susceptible status.
       data$S[new_exposed] <- 0
-            
+      
       # Label community infections with C and household infections with H.
       results$TYPE[new_inf_C == 1] <- 'C'
       results$TYPE[new_inf_H == 1] <- 'H'
-            
+      
       # Get number of new infections in each household.
       rr <- results %>% filter(new_inf_H == 1) %>%
-                        group_by(HH) %>%
-                        mutate(I_tot = sum(TYPE == 'H')) %>%
-                        ungroup()
+        group_by(HH) %>%
+        mutate(I_tot = sum(TYPE == 'H')) %>%
+        ungroup()
       rr <- unique(rr[, c('HH', 'I_tot')])
       
       # Get people with the smallest I_counts and the households with the
@@ -144,17 +144,17 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       dd = data %>% filter(data$I == 1) %>% group_by(HH) %>% slice(which.min(I_count))
       min_IDs <- dd$ID
       new_HHs <- results[new_inf_H == 1, ]$HH
-            
+      
       # Every individual with the smallest I_count in each household with 
       # at least one new H infection gets the number of new H infections
       # added to their I_num.
       idx <- (data$ID %in% min_IDs) & (data$HH %in% new_HHs)
-            
+      
       # For debugging purposes.
       if (length(results[idx, ]$I_num) != length(rr$I_tot)) {
         return(list(data, results, new_inf_H))
       }
-            
+      
       results[idx, ]$I_num <- results[idx, ]$I_num + rr$I_tot
       
       # Label individuals with both a household and community infection with B.
@@ -262,21 +262,34 @@ metropolis = function(start, num_iter) {
     
     # Save the chain, best state, and likelihoods
     # so far.
-    save(chain, file = 'chain.Rdata')
-    save(liks, file = 'liks.Rdata')
-    save(best, file = 'best.Rdata')
+    save(chain, file = 'chain.npy')
+    save(liks, file = 'liks.npy')
+    save(best, file = 'best.npy')
   }
   return(list(chain, liks, best))
 }
 
 # Solve for optimal values via MCMC.
 target = c(0.3, 0.25) # Target values.
-N = 100 # Number of times over which to average likelihood.
+N = 300 # Number of times over which to average likelihood.
 
-metropolis_results = metropolis(c(30, 0.12), 10)
-chain = metropolis_results[[1]]
-liks = metropolis_results[[2]]
-best = metropolis_results[[3]]
-save(chain, file = "chain.Rdata")
-save(liks, file = "liks.Rdata")
-save(best, file = "best.Rdata")
+#metropolis_results = metropolis(c(30, 0.12), 10)
+#chain = metropolis_results[[1]]
+#liks = metropolis_results[[2]]
+#best = metropolis_results[[3]]
+#save(chain, file = "chain.Rdata")
+#save(liks, file = "liks.Rdata")
+#save(best, file = "best.Rds")
+
+t_0 = Sys.time()
+beta_H = 30
+beta_C = 0.15
+N = 1000
+vals = matrix(0, N, 2)
+for (i in 1:N) {
+  results = SEIR(beta_H, beta_C, inc, inf)
+  vals[i, ] = metrics(results)
+  save(vals, file = 'vals.Rdata')
+}
+t_1 = Sys.time()
+print(t_1 - t_0)

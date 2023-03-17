@@ -262,25 +262,26 @@ metropolis = function(start, num_iter) {
     
     # Save the chain, best state, and likelihoods
     # so far.
-    save(chain, file = 'chain.npy')
-    save(liks, file = 'liks.npy')
-    save(best, file = 'best.npy')
+    save(chain, file = 'chain.Rdata')
+    save(liks, file = 'liks.Rdata')
+    save(best, file = 'best.Rdata')
   }
   return(list(chain, liks, best))
 }
 
 # Solve for optimal values via MCMC.
 target = c(0.3, 0.25) # Target values.
-N = 100 # Number of times over which to average likelihood.
+N = 300 # Number of times over which to average likelihood.
 
-metropolis_results = metropolis(c(30, 0.12), 10)
-chain = metropolis_results[[1]]
-liks = metropolis_results[[2]]
-best = metropolis_results[[3]]
-save(chain, file = "chain.Rdata")
-save(liks, file = "liks.Rdata")
-save(best, file = "best.Rds")
+#metropolis_results = metropolis(c(30, 0.12), 10)
+#chain = metropolis_results[[1]]
+#liks = metropolis_results[[2]]
+#best = metropolis_results[[3]]
+#save(chain, file = "chain.Rdata")
+#save(liks, file = "liks.Rdata")
+#save(best, file = "best.Rdata")
 
+t_0 = Sys.time()
 beta_H = 30
 beta_C = 0.15
 N = 1000
@@ -288,4 +289,7 @@ vals = matrix(0, N, 2)
 for (i in 1:N) {
   results = SEIR(beta_H, beta_C, inc, inf)
   vals[i, ] = metrics(results)
+  save(vals, file = 'vals.Rdata')
 }
+t_1 = Sys.time()
+print(t_1 - t_0)
