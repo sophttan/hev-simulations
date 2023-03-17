@@ -280,14 +280,3 @@ best = metropolis_results[[3]]
 save(chain, file = "chain.Rdata")
 save(liks, file = "liks.Rdata")
 save(best, file = "best.Rds")
-
-
-beta_H = 30
-beta_C = 0.15
-N = 100
-vals = matrix(0, N, 2)
-for (i in 1:N) {
-  results = SEIR(beta_H, beta_C, inc, inf)
-  vals[i, ] = metrics(results)
-  print(vals)
-}
