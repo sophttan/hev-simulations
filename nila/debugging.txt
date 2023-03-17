@@ -35,7 +35,7 @@ In SEIR, removed
     results <- results %>% mutate(time = ifelse(new_exposed == 1, t, time))
     
 Reason: One of Sophia's bug fixes: time is updated when an individual becomes infectious
-rather han when they become exposed.
+rather than when they become exposed.
 
 ### CHANGE 4 ###
 In SEIR, changed
@@ -69,6 +69,20 @@ In likelihood, changed
     View(liks)
     return(liks)
 to 
+    beta_H = state[1]
+    beta_C = state[2]
+
+    vals = matrix(0, N, 2)
+    for (i in 1:N) {
+    results = SEIR(beta_H, beta_C, inc, inf)
+    vals[i, ] = metrics(results)
+    }
+
+    avg_vals = colMeans(vals)
+    print(avg_vals)
+    return(-log(score(avg_vals, target)))
+    
+Reason: I feel like the code I changed it to is easier to understand.
 
 ### CHANGE 6 ###
 In score, changed 
