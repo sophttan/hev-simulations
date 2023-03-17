@@ -53,10 +53,8 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
     # Create frame for storing results
     results = data.loc[:, 'ID':'HH']
     results['TYPE'] = np.nan
-    results.loc[0, 'TYPE'] = 'I' # index case is Type 0 
+    results.loc[0, 'TYPE'] = '0' # index case is Type 0 
     results['TIME'] = np.nan
-    #results['TIME_I'] = np.nan
-    #results['TIME_E'] = np.nan
     results['S_num'] = np.nan
     results['I_num'] = 0
     
@@ -121,13 +119,12 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
         if num_new_exposed > 0:
             data.loc[new_exposed, 'E'] = 1
             random_inc = np.round(stats.norm.rvs(inc, 2, size = num_new_exposed))
-            data.loc[new_exposed, 'E'] = 1
             data.loc[new_exposed, 'INC'] = random_inc
             
             #print(np.sum( (new_inf_H == 1) & (~pd.isna(results['TYPE'])) ))
             # The NA checks may not be necessary, since S = 0 for anyone who already has been assigned a TYPE
-            results['TYPE'].where(~(new_inf_H == 1) | ~pd.isna(results['TYPE']), 'H', inplace = True)
             results['TYPE'].where(~(new_inf_C == 1) | ~pd.isna(results['TYPE']), 'C', inplace = True)
+            results['TYPE'].where(~(new_inf_H == 1) | ~pd.isna(results['TYPE']), 'H', inplace = True)
             #results['TIME_E'].where(~(new_exposed == 1) | ~pd.isna(results['TIME_E']), t, inplace = True)
             
             # Number of new infections in each household
@@ -150,8 +147,7 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
     return results
 
 def metrics(results):
-    state = results[~pd.isna(results['TIME'])]
-    idc = state.shape[0]/1000
+    idc = np.mean(~pd.isna(results['TYPE']))
     
     sar = np.nan
     if idc != 0:

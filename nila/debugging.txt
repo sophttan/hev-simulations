@@ -1,0 +1,52 @@
+QUESTIONS
+- What does time here represent?
+    - It's the day (out of 365 days).
+- Progress bar?
+    - Yeah, basically.
+- Use a bernoulli maybe?
+    - No need. The Metropolis algorithm will move to the proposed state if it is better (prop_lik > curr_lik), or, 
+      if it is not (prop_lik < curr_lik), with chance proportional to the ratio of their scores. So if r > 1, we 
+      should always transition to the proposed state, since r > 1 if and only if prop_lik > curr_lik. Since p is
+      Uniform(0, 1), we will have that p < 1 < r and we are fine. However if r < 1, we should move to the proposed 
+      state with chance r. Fortunately, P(p < r) = r for 0 < r < 1, since p ~ Uniform(0, 1). So it works out in 
+      that case as well.
+
+CHANGES
+
+### CHANGE 1 ###
+In q, changed
+    return(pmax(rgamma(n = 2, shape = r, scale = 1 / v), 1e-3))
+to 
+    return(pmax(rgamma(n = 2, shape = r, rate = v), 1e-3))
+
+Reason: In R, the rgamma function takes in shape and rate rather than shape and scale.
+
+### CHANGE 2 ###
+In SEIR, changed
+    risk_C <- beta_C*d$S*dd$I_H / pop
+to 
+    risk_C <- beta_C * d$S * dd$I_C / pop
+    
+Reason: risk_C uses the number of infections in the community, not the number of
+infections in the household.
+
+### CHANGE 3 ###
+In SEIR, removed
+    results <- results %>% mutate(time = ifelse(new_exposed == 1, t, time))
+    
+Reason: One of Sophia's bug fixes: time is updated when an individual becomes infectious
+rather han when they become exposed.
+
+### CHANGE 4 ###
+In SEIR, changed
+    results$type[!((new_inf_H == 1) & (new_inf_C == 1)) | !is.na(results$type)] <- 'B'
+    results$type[!(new_inf_H == 1) | !is.na(results$type)] <- 'H'
+    results$type[!(new_inf_H == 1) | !is.na(results$type)] <- 'C'
+    results$time[!(new_exposed == 1) | !is.na(results$time)] <- t
+to
+    results$TYPE[new_inf_C] <- 'C'
+    results$TYPE[new_inf_H] <- 'H'
+    results$TYPE[new_inf_H & new_inf_C] <- 'B'
+
+Reason: The NA checks aren't necessary, as it's impossible for someone who was already
+exposed to become exposed again.

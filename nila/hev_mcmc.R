@@ -183,9 +183,7 @@ q = function(state) {
   r = c(beta_H^2, beta_C^2 / 0.0001)
   v = c(beta_H^2, beta_C^2 / 0.0001)
   
-  return(pmax(rgamma(n = 2, shape = r, scale = 1 / v), 1e-3))
-  # (?) the parameters of the above gamma distribution may be wrong, but i
-  # assumed r to be the shape parameter
+  return(pmax(rgamma(n = 2, shape = r, rate = v), 1e-3))
 }
 
 # MCMC
