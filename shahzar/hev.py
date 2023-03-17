@@ -120,6 +120,7 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
             data.loc[new_exposed, 'E'] = 1
             random_inc = np.round(stats.norm.rvs(inc, 2, size = num_new_exposed))
             data.loc[new_exposed, 'INC'] = random_inc
+            data.loc[new_exposed, 'S'] = 0
             
             #print(np.sum( (new_inf_H == 1) & (~pd.isna(results['TYPE'])) ))
             # The NA checks may not be necessary, since S = 0 for anyone who already has been assigned a TYPE
@@ -142,7 +143,6 @@ def SEIR(beta_H, beta_C, inc, inf, verbose = 0):
             
         data.loc[data['E'] == 1, 'E_count'] += 1
         data.loc[data['I'] == 1, 'I_count'] += 1
-        data.loc[data['E'] == 1, 'S'] = 0
 
     return results
 
@@ -240,7 +240,7 @@ def metropolis(start, num_iter):
 target = np.array([0.3, 0.25]) # target values
 N = 5 # number of times over which to average likelihood
 
-chain, liks, best = metropolis([30, 0.12], 1000)
-np.save('chain.npy', chain)
-np.save('liks.npy', liks)
-np.save('best.npy', best)
+#chain, liks, best = metropolis([30, 0.12], 1000)
+#np.save('chain.npy', chain)
+#np.save('liks.npy', liks)
+#np.save('best.npy', best)

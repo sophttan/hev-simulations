@@ -50,3 +50,30 @@ to
 
 Reason: The NA checks aren't necessary, as it's impossible for someone who was already
 exposed to become exposed again.
+
+### CHANGE 5 ### 
+In likelihood, changed
+    Nresults = SEIR(beta_H, beta_C, inc, inf)
+    Nresults = Nresults %>% mutate(df = 1)
+
+    for (i in 2:N) {
+    results = SEIR(beta_H, beta_C, inc, inf)
+    results = results %>% mutate(df = i)
+    Nresults = cbind(Nresults, results)
+    }
+
+    split_results <- split(Nresults, f = Nresults$df)
+    print(split_results)
+    avg_results <- Reduce(`+`, mget(paste0("split_results[[1]][[", 1:N, "]]")))/N
+    liks[i] = -log(score(avg_results, target))
+    View(liks)
+    return(liks)
+to 
+
+### CHANGE 6 ###
+In score, changed 
+    return(sum(metrics(results) - target)^2)
+to 
+    return(sum((metrics(results) - target)^2))
+    
+Reason: We want to square the difference first, and then sum it. 
