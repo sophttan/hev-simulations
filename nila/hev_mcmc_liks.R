@@ -12,7 +12,7 @@ create_hh <- function() {
     # Keep households such that total population is < 1000.
     hh_size <- hh_size[which(cumsum(hh_size) < pop)]
   
-    leftover <- pop-sum(hh_size)
+    leftover <- pop - sum(hh_size)
     if (leftover < 3) {
         hh <- 1:length(hh_size)
         sampled <- sample(hh[hh_size < 6], leftover)
@@ -149,9 +149,12 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
             # at least one new H infection gets the number of new H infections
             # added to their I_num.
             idx <- (data$ID %in% min_IDs) & (data$HH %in% new_HHs)
+            
+            # For debugging purposes.
             if (length(results[idx, ]$I_num) != length(rr$I_tot)) {
                 return(list(data, results, new_inf_H))
             }
+            
             results[idx, ]$I_num <- results[idx, ]$I_num + rr$I_tot
             
             # Label individuals with both a household and community infection with B.
