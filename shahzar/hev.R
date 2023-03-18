@@ -169,7 +169,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
 
 metrics = function(results) {
   # Incidence is the proportion of the population that became infected.
-  idc = mean(!is.na(results$TYPE))
+  idc = mean(!is.na(results$TIME))
   
   # If incidence is 0, the SAR is undefined.
   sar = NA

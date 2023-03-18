@@ -318,3 +318,10 @@ Type 'q()' to quit R.
 +   vals[i, ] = metrics(results)
 +   save(vals, file = 'vals.Rdata')
 + }
+> t_1 = Sys.time()
+> print(t_1 - t_0)
+Time difference of 2.827588 hours
+> 
+> proc.time()
+     user    system   elapsed 
+ 7574.822   161.171 10184.983 
