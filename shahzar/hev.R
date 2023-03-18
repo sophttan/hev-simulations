@@ -1,3 +1,5 @@
+rm(list=ls())
+gc()
 library(tidyverse)
 
 time = 365
@@ -92,7 +94,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       data$E_count[new_inf] <- 0 
       
       # Record time at which infectious period starts.
-      results$TIME[new_inf == 1] <- t
+      results$TIME[new_inf] <- t
       
       # Save the number of susceptible people in each infectious 
       # individual's household.
@@ -119,7 +121,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
     
     new_exposed = (new_inf_H == 1) | (new_inf_C == 1)
     num_new_exposed = sum(new_exposed, na.rm = T)
-    if (sum(new_exposed) > 0) {
+    if (num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed] <- 1
       random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
@@ -129,37 +131,28 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       data$S[new_exposed] <- 0
       
       # Label community infections with C and household infections with H.
-      results$TYPE[new_inf_C == 1] <- 'C'
       results$TYPE[new_inf_H == 1] <- 'H'
+      results$TYPE[new_inf_C == 1] <- 'C'
       
       # Get number of new infections in each household.
-      rr <- results %>% filter(new_inf_H == 1) %>%
+      assign_new_inf <-I_data %>%
+        select(ID, HH, I, I_H) %>%
+        mutate(new_I_H = new_inf_H) %>%
         group_by(HH) %>%
-        mutate(I_tot = sum(TYPE == 'H')) %>%
-        ungroup()
-      rr <- unique(rr[, c('HH', 'I_tot')])
-      
-      # Get people with the smallest I_counts and the households with the
-      # new infections.
-      dd = data %>% filter(data$I == 1) %>% group_by(HH) %>% slice(which.min(I_count))
-      min_IDs <- dd$ID
-      new_HHs <- results[new_inf_H == 1, ]$HH
-      
-      # Every individual with the smallest I_count in each household with 
-      # at least one new H infection gets the number of new H infections
-      # added to their I_num.
-      idx <- (data$ID %in% min_IDs) & (data$HH %in% new_HHs)
-      
-      # For debugging purposes.
-      if (length(results[idx, ]$I_num) != length(rr$I_tot)) {
-        return(list(data, results, new_inf_H))
-      }
-      
-      results[idx, ]$I_num <- results[idx, ]$I_num + rr$I_tot
+        # keep households with any currently infectious people
+        filter(first(I_H)>0) %>%
+        # randomly assign new exposures to currently infectious people
+        # in a household with probability 1/total_infectious if individual is infectious
+        summarise(assigned_ID=sample(x=ID, size=sum(new_I_H), replace=T, prob=I/I_H)) %>%
+        group_by(assigned_ID) %>% summarise(I_new=n())
+
+      results <- results %>% left_join(assign_new_inf, by=c("ID"="assigned_ID")) %>%
+        replace_na(list(I_new=0)) %>% mutate(I_num=I_num+I_new) %>% select(!I_new)
       
       # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
     }
+    
     # Increment exposure and infectious counters.
     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
@@ -281,9 +274,10 @@ N = 300 # Number of times over which to average likelihood.
 #save(liks, file = "liks.Rdata")
 #save(best, file = "best.Rdata")
 
-t_0 = Sys.time()
 beta_H = 30
 beta_C = 0.15
+
+t_0 = Sys.time()
 N = 1000
 vals = matrix(0, N, 2)
 for (i in 1:N) {
