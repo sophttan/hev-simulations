@@ -8,7 +8,8 @@ inf = 7
 pop = 1000 # Population size
 
 create_hh <- function() {
-  # Randomly sample household sizes such that total population is 1000 individuals.
+  # Randomly sample household sizes such that total population is 1000 
+  # individuals.
   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
   
   # Keep households such that total population is < 1000.
@@ -52,14 +53,16 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
                     INC = c(round(rnorm(1, inc, 2)), rep(0, pop - 1)),
                     INF = 0)
   
-  # Create frame for storing results
-  # ID: ID of individual
-  # SIZE: size of individual's household
-  # HH: ID of individual's household
-  # TYPE: the kind of infection: household (H), community (C), or both (B)
-  # TIME: when the individual became infectious
-  # S_num: number of susceptible people in individual's household when their infectious period begins
-  # I_num: number of people in household that this individual infected over their infectious period
+  # Create frame for storing results.
+  # ID: ID of individual.
+  # SIZE: size of individual's household.
+  # HH: ID of individual's household.
+  # TYPE: the kind of infection: household (H), community (C), or both (B).
+  # TIME: when the individual became infectious.
+  # S_num: number of susceptible people in individual's household when their 
+  #        infectious period begins.
+  # I_num: number of people in household that this individual infected over 
+  #        their infectious period.
   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
   results$TYPE[1] = '0'
   
@@ -98,7 +101,9 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       
       # Save the number of susceptible people in each infectious 
       # individual's household.
-      S_data = data %>% group_by(HH) %>% mutate(S_tot = sum(S)) %>% select(HH, S_tot)
+      S_data = data %>% group_by(HH) %>% 
+        mutate(S_tot = sum(S)) %>% 
+        select(HH, S_tot)
       results$S_num[new_inf == 1] = S_data$S_tot[new_inf == 1]
     }
     
@@ -131,23 +136,28 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       data$S[new_exposed] <- 0
       
       # Label community infections with C and household infections with H.
-      results$TYPE[new_inf_H == 1] <- 'H'
       results$TYPE[new_inf_C == 1] <- 'C'
+      results$TYPE[new_inf_H == 1] <- 'H'
       
       # Get number of new infections in each household.
-      assign_new_inf <-I_data %>%
+      assign_new_inf <- I_data %>%
         select(ID, HH, I, I_H) %>%
         mutate(new_I_H = new_inf_H) %>%
         group_by(HH) %>%
-        # keep households with any currently infectious people
-        filter(first(I_H)>0) %>%
-        # randomly assign new exposures to currently infectious people
-        # in a household with probability 1/total_infectious if individual is infectious
-        summarise(assigned_ID=sample(x=ID, size=sum(new_I_H), replace=T, prob=I/I_H)) %>%
-        group_by(assigned_ID) %>% summarise(I_new=n())
+        # Keep households with any currently infectious people.
+        filter(first(I_H) > 0) %>%
+        # Randomly assign new exposures to currently infectious people
+        # in a household with probability 1/total_infectious if individual is 
+        # infectious
+        summarise(assigned_ID = sample(x = ID, size = sum(new_I_H), 
+                                       replace = T, prob = I/I_H)) %>%
+        group_by(assigned_ID) %>% summarise(I_new = n())
 
-      results <- results %>% left_join(assign_new_inf, by=c("ID"="assigned_ID")) %>%
-        replace_na(list(I_new=0)) %>% mutate(I_num=I_num+I_new) %>% select(!I_new)
+      results <- results %>% left_join(assign_new_inf, 
+                                       by = c("ID"="assigned_ID")) %>%
+        replace_na(list(I_new = 0)) %>% 
+        mutate(I_num = I_num + I_new) %>% 
+        select(!I_new)
       
       # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
@@ -233,31 +243,28 @@ metropolis = function(start, num_iter) {
     prop_lik = likelihood(prop)
     paste0(prop, " ", signif(prop_lik, 3), '\t')
     
-    # Compute the ratio of the scores of the two states
-    # and flip a coin.
+    # Compute the ratio of the scores of the two states and flip a coin.
     r = exp(prop_lik - curr_lik)
     p = runif(1)
     paste(signif(r, 3), signif(p, 3))
     
-    # Transition if the proposed state is better or
-    # if the coin flip succeeds.
+    # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
       curr = prop
       curr_lik = prop_lik
       
-      # If the new likelihood is better than the
-      # best we've seen so far, replace the best.
+      # If the new likelihood is better than the best we've seen so far, replace 
+      # the best.
       if (curr_lik > best_lik) {
         best = curr
         best_lik = curr_lik
       }
     }
     
-    # Save the chain, best state, and likelihoods
-    # so far.
-    save(chain, file = 'chain.Rdata')
-    save(liks, file = 'liks.Rdata')
-    save(best, file = 'best.Rdata')
+    # Save the chain, best state, and likelihoods so far.
+    save(chain, file = paste(getwd(), '/chain.Rdata', sep = ''))
+    save(liks, file = paste(getwd(), '/liks.Rdata', sep = ''))
+    save(best, file = paste(getwd(), '/best.Rdata', sep = ''))
   }
   return(list(chain, liks, best))
 }
@@ -283,7 +290,7 @@ vals = matrix(0, N, 2)
 for (i in 1:N) {
   results = SEIR(beta_H, beta_C, inc, inf)
   vals[i, ] = metrics(results)
-  save(vals, file = 'vals.Rdata')
+  write.csv(vals, paste(getwd(), '/vals.csv', sep = ''))
 }
 t_1 = Sys.time()
 print(t_1 - t_0)
