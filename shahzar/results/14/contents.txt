@@ -1,0 +1,3 @@
+Compare performance with and without parallelization.
+Without using 8 cores: 3.678234 hours
+With using 8 cores: 45.3669 mins

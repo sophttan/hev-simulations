@@ -6,7 +6,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
-num_cores <- 5
+num_cores <- 8
 registerDoParallel(num_cores)
 
 time <- 365 # Number of days.
@@ -270,11 +270,26 @@ metropolis <- function(start, num_iter) {
   return(list(chain, liks, best))
 }
 
-# Solve for optimal values via MCMC.
-target <- c(0.3, 0.25) # Target values.
-N <- 300 # Number of times over which to average likelihood.
+beta_H <- 30
+beta_C <- 0.2
+N <- 1000
+state = c(beta_H, beta_C)
+target <- c(0.3, 0.25)
 
-metropolis_results = metropolis(c(30, 0.15), 1000)
-chain = metropolis_results[[1]]
-liks = metropolis_results[[2]]
-best = metropolis_results[[3]]
+t_0 <- Sys.time()
+print(likelihood(state))
+t_1 = Sys.time()
+print(t_1 - t_0)
+
+t_0 <- Sys.time()
+beta_H <- state[1]
+beta_C <- state[2]
+vals = matrix(0, N, 2)
+for (i in 1:N) {
+  results = SEIR(beta_H, beta_C, inc, inf)
+  vals[i, ] = metrics(results)
+}
+avg_vals = colMeans(vals)
+print(-log(score(avg_vals, target)))
+t_1 = Sys.time()
+print(t_1 - t_0)
