@@ -1,1 +1,3 @@
 Compare performance with and without parallelization.
+Without using 5 cores: 63.3 minutes
+With using 5 cores: 17.1 minutes
