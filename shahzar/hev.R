@@ -1,6 +1,7 @@
 rm(list=ls())
 gc()
 library(tidyverse)
+options(dplyr.summarise.inform = FALSE)
 
 time = 365
 inc = 28
@@ -151,7 +152,8 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
         # infectious
         summarise(assigned_ID = sample(x = ID, size = sum(new_I_H), 
                                        replace = T, prob = I/I_H)) %>%
-        group_by(assigned_ID) %>% summarise(I_new = n())
+        group_by(assigned_ID) %>% 
+        summarise(I_new = n()) 
 
       results <- results %>% left_join(assign_new_inf, 
                                        by = c("ID"="assigned_ID")) %>%
@@ -202,7 +204,6 @@ likelihood = function(state) {
   }
   
   avg_vals = colMeans(vals)
-  print(avg_vals)
   return(-log(score(avg_vals, target)))
 }
 
@@ -236,17 +237,19 @@ metropolis = function(start, num_iter) {
     liks[i, ] = curr_lik
     
     # Print current state and likelihood.
-    paste0(i, '\t', curr, " ", signif(curr_lik, 3), '\t')
+    print(i)
+    print(curr)
+    message(paste0(i, '\t', curr, " ", round(curr_lik, 3), '\t'))
     
     # Get a proposed state and calculate its likelihood.
     prop = q(curr)
     prop_lik = likelihood(prop)
-    paste0(prop, " ", signif(prop_lik, 3), '\t')
+    message(paste0(prop, " ", round(prop_lik, 3), '\t'))
     
     # Compute the ratio of the scores of the two states and flip a coin.
     r = exp(prop_lik - curr_lik)
     p = runif(1)
-    paste(signif(r, 3), signif(p, 3))
+    message(paste(round(r, 3), round(p, 3)))
     
     # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
@@ -262,25 +265,24 @@ metropolis = function(start, num_iter) {
     }
     
     # Save the chain, best state, and likelihoods so far.
-    save(chain, file = paste(getwd(), '/chain.Rdata', sep = ''))
-    save(liks, file = paste(getwd(), '/liks.Rdata', sep = ''))
-    save(best, file = paste(getwd(), '/best.Rdata', sep = ''))
+    save(chain, file = paste0(getwd(), '/chain.Rdata'))
+    save(liks, file = paste0(getwd(), '/liks.Rdata'))
+    save(best, file = paste0(getwd(), '/best.Rdata'))
   }
   return(list(chain, liks, best))
 }
 
 # Solve for optimal values via MCMC.
 target = c(0.3, 0.25) # Target values.
-N = 300 # Number of times over which to average likelihood.
+N = 3 # Number of times over which to average likelihood.
 
-#metropolis_results = metropolis(c(30, 0.12), 10)
-#chain = metropolis_results[[1]]
-#liks = metropolis_results[[2]]
-#best = metropolis_results[[3]]
-#save(chain, file = "chain.Rdata")
-#save(liks, file = "liks.Rdata")
-#save(best, file = "best.Rdata")
+metropolis_results = metropolis(c(30, 0.12), 10)
+chain = metropolis_results[[1]]
+liks = metropolis_results[[2]]
+best = metropolis_results[[3]]
 
+
+# Validation
 beta_H = 30
 beta_C = 0.15
 
@@ -290,7 +292,7 @@ vals = matrix(0, N, 2)
 for (i in 1:N) {
   results = SEIR(beta_H, beta_C, inc, inf)
   vals[i, ] = metrics(results)
-  write.csv(vals, paste(getwd(), '/vals.csv', sep = ''))
+  write.csv(vals, paste0(getwd(), '/vals.csv'))
 }
 t_1 = Sys.time()
-print(t_1 - t_0)
+message(t_1 - t_0)
