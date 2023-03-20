@@ -1,12 +1,17 @@
-rm(list=ls())
+rm(list = ls())
 gc()
-library(tidyverse)
-options(dplyr.summarise.inform = FALSE)
+library(dplyr)
+library(foreach)
+library(doParallel)
 
-time <- 365
-inc <- 28
-inf <- 7
-pop <- 1000 # Population size
+# Set up the number of cores used for parallelization.
+num_cores <- 5
+registerDoParallel(num_cores)
+
+time <- 365 # Number of days.
+inc <- 28 # Average incubation period length.
+inf <- 7 # Average infectious period length.
+pop <- 1000 # Population size.
 
 create_hh <- function() {
   # Randomly sample household sizes such that total population is 1000 
@@ -30,18 +35,18 @@ create_hh <- function() {
 SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   hh_size <- create_hh()
   
-  # Create frame for running the simulation
-  # ID: ID of individual
-  # SIZE: size of individual's household
-  # HH: ID of individual's household
-  # S: susceptibility status
-  # E: exposed status
-  # E_count: number of days since exposed
-  # I: infectious status
-  # I_count: number of days since infectious
-  # R: recovered status
-  # INC: incubation period
-  # INF: infectious period
+  # Create frame for running the simulation.
+  # ID: ID of individual.
+  # SIZE: size of individual's household.
+  # HH: ID of individual's household.
+  # S: susceptibility status.
+  # E: exposed status.
+  # E_count: number of days since exposed.
+  # I: infectious status.
+  # I_count: number of days since infectious.
+  # R: recovered status.
+  # INC: incubation period.
+  # INF: infectious period.
   data <- data.frame(ID = 1:pop,
                     SIZE = rep(hh_size, times = hh_size),
                     HH = rep(1:length(hh_size), times = hh_size), 
@@ -150,7 +155,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
         # If there are multiple infectious people, assign all infections to an infectious person at random.
         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I_H), 0))
       
-      results$I_num <- results$I_num+I_data$new_I_H
+      results$I_num <- results$I_num + I_data$new_I_H
         
       # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
@@ -177,7 +182,7 @@ metrics <- function(results) {
 }
 
 score <- function(obs, target) {
-  # The score is the L2 distance of the observed values from the target.
+  # The score is the L² distance of the observed values from the target.
   return(sum((obs - target)^2))
 }
 
@@ -188,11 +193,11 @@ likelihood <- function(state) {
   beta_H <- state[1]
   beta_C <- state[2]
   
-  vals <- matrix(0, N, 2)
-  for (i in 1:N) {
+  vals <- foreach (i = 1:N, .combine = 'c') %dopar% {
     results <- SEIR(beta_H, beta_C, inc, inf)
-    vals[i, ] <- metrics(results)
+    metrics(results)
   }
+  vals <- matrix(vals, N, byrow = T)
   
   avg_vals <- colMeans(vals)
   return(-log(score(avg_vals, target)))
@@ -205,7 +210,7 @@ q <- function(state) {
   beta_H <- state[1]
   beta_C <- state[2]
   r <- c(beta_H^2, beta_C^2 / 0.0001)
-  v <- c(beta_H^2, beta_C^2 / 0.0001)
+  v <- c(beta_H, beta_C / 0.0001)
   
   return(pmax(rgamma(n = 2, shape = r, rate = v), 1e-3))
 }
@@ -227,20 +232,21 @@ metropolis <- function(start, num_iter) {
     chain[i, ] <- curr
     liks[i, ] <- curr_lik
     
-    # Print current state and likelihood.
-    print(i)
-    print(curr)
-    message(paste0(i, '\t', curr, " ", round(curr_lik, 3), '\t'))
-    
     # Get a proposed state and calculate its likelihood.
     prop <- q(curr)
     prop_lik <- likelihood(prop)
-    message(paste0(prop, " ", round(prop_lik, 3), '\t'))
     
     # Compute the ratio of the scores of the two states and flip a coin.
     r <- exp(prop_lik - curr_lik)
     p <- runif(1)
-    message(paste(round(r, 3), round(p, 3)))
+    
+    # Print the current progress.
+    prog_str = paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
+                      ']\t', round(curr_lik, 3), '\t', 
+                      '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
+                      round(prop_lik, 3), 
+                      '\t', round(r, 3), '\t', round(p, 3))
+    message(prog_str)
     
     # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
@@ -256,9 +262,9 @@ metropolis <- function(start, num_iter) {
     }
     
     # Save the chain, best state, and likelihoods so far.
-    save(chain, file <- paste0(getwd(), '/chain.Rdata'))
-    save(liks, file <- paste0(getwd(), '/liks.Rdata'))
-    save(best, file <- paste0(getwd(), '/best.Rdata'))
+    save(chain, file = paste0(getwd(), '/chain.Rdata'))
+    save(liks, file = paste0(getwd(), '/liks.Rdata'))
+    save(best, file = paste0(getwd(), '/best.Rdata'))
   }
   return(list(chain, liks, best))
 }
@@ -267,22 +273,7 @@ metropolis <- function(start, num_iter) {
 target <- c(0.3, 0.25) # Target values.
 N <- 300 # Number of times over which to average likelihood.
 
-metropolis_results = metropolis(c(30, 0.12), 10)
+metropolis_results = metropolis(c(30, 0.15), 10)
 chain = metropolis_results[[1]]
 liks = metropolis_results[[2]]
 best = metropolis_results[[3]]
-
-# Validation
-beta_H <- 30
-beta_C <- 0.15
-
-t_0 <- Sys.time()
-N <- 1000
-vals <- matrix(0, N, 2)
-for (i in 1:N) {
-  results <- SEIR(beta_H, beta_C, inc, inf)
-  vals[i, ] <- metrics(results)
-  write.csv(vals, paste0(getwd(), '/vals.csv'))
-}
-t_1 <- Sys.time()
-print(t_1 - t_0)
