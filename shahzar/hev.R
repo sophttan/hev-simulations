@@ -3,10 +3,10 @@ gc()
 library(tidyverse)
 options(dplyr.summarise.inform = FALSE)
 
-time = 365
-inc = 28
-inf = 7
-pop = 1000 # Population size
+time <- 365
+inc <- 28
+inf <- 7
+pop <- 1000 # Population size
 
 create_hh <- function() {
   # Randomly sample household sizes such that total population is 1000 
@@ -28,7 +28,7 @@ create_hh <- function() {
 }
 
 SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
-  hh_size = create_hh()
+  hh_size <- create_hh()
   
   # Create frame for running the simulation
   # ID: ID of individual
@@ -42,7 +42,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   # R: recovered status
   # INC: incubation period
   # INF: infectious period
-  data = data.frame(ID = 1:pop,
+  data <- data.frame(ID = 1:pop,
                     SIZE = rep(hh_size, times = hh_size),
                     HH = rep(1:length(hh_size), times = hh_size), 
                     S = c(0, rep(1, pop - 1)), 
@@ -65,7 +65,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   # I_num: number of people in household that this individual infected over 
   #        their infectious period.
   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
-  results$TYPE[1] = '0'
+  results$TYPE[1] <- '0'
   
   for(t in 1:time) {
     if (verbose) {
@@ -86,7 +86,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
     # Anyone who has been incubating for as many days as their incubation
     # period is now infectious.
     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
-    num_new_inf = sum(new_inf, na.rm = T)
+    num_new_inf <- sum(new_inf, na.rm = T)
     if(num_new_inf > 0) {
       # Change status to newly infectious and add infectious period.
       data$I[new_inf] <- 1
@@ -102,10 +102,10 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       
       # Save the number of susceptible people in each infectious 
       # individual's household.
-      S_data = data %>% group_by(HH) %>% 
+      S_data <- data %>% group_by(HH) %>% 
         mutate(S_tot = sum(S)) %>% 
         select(HH, S_tot)
-      results$S_num[new_inf == 1] = S_data$S_tot[new_inf == 1]
+      results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
     }
     
     # I_H is the number of infections inside each household.
@@ -125,8 +125,8 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
     new_inf_H <- rbinom(nrow(data), 1, risk_H)
     new_inf_C <- rbinom(nrow(data), 1, risk_C)
     
-    new_exposed = (new_inf_H == 1) | (new_inf_C == 1)
-    num_new_exposed = sum(new_exposed, na.rm = T)
+    new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
+    num_new_exposed <- sum(new_exposed, na.rm = T)
     if (num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed] <- 1
@@ -141,26 +141,17 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       results$TYPE[new_inf_H == 1] <- 'H'
       
       # Get number of new infections in each household.
-      assign_new_inf <- I_data %>%
+      I_data <- I_data %>%
         select(ID, HH, I, I_H) %>%
         mutate(new_I_H = new_inf_H) %>%
         group_by(HH) %>%
-        # Keep households with any currently infectious people.
-        filter(first(I_H) > 0) %>%
-        # Randomly assign new exposures to currently infectious people
-        # in a household with probability 1/total_infectious if individual is 
-        # infectious
-        summarise(assigned_ID = sample(x = ID, size = sum(new_I_H), 
-                                       replace = T, prob = I/I_H)) %>%
-        group_by(assigned_ID) %>% 
-        summarise(I_new = n()) 
-
-      results <- results %>% left_join(assign_new_inf, 
-                                       by = c("ID"="assigned_ID")) %>%
-        replace_na(list(I_new = 0)) %>% 
-        mutate(I_num = I_num + I_new) %>% 
-        select(!I_new)
+        # Find households with at least 1 currently infectious person.
+        # If exactly 1 infectious person in household, assign all new H exposures to infectious person.
+        # If there are multiple infectious people, assign all infections to an infectious person at random.
+        mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I_H), 0))
       
+      results$I_num <- results$I_num+I_data$new_I_H
+        
       # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
     }
@@ -172,20 +163,20 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   return(results)
 }
 
-metrics = function(results) {
+metrics <- function(results) {
   # Incidence is the proportion of the population that became infected.
-  idc = mean(!is.na(results$TIME))
+  idc <- mean(!is.na(results$TIME))
   
   # If incidence is 0, the SAR is undefined.
-  sar = NA
+  sar <- NA
   if (idc != 0) {
     # The SAR is the average SAR for each individual that was infectious.
-    sar = mean(results$I_num / results$S_num, na.rm = T)
+    sar <- mean(results$I_num / results$S_num, na.rm = T)
   }
   return(c(idc, sar))
 }
 
-score = function(obs, target) {
+score <- function(obs, target) {
   # The score is the L2 distance of the observed values from the target.
   return(sum((obs - target)^2))
 }
@@ -193,48 +184,48 @@ score = function(obs, target) {
 # The likelihood is calculated by first averaging the incidence and SAR over N
 # simulations with the state parameters. The likelihood is the negative log
 # score of the average incidence and SAR.
-likelihood = function(state) {
-  beta_H = state[1]
-  beta_C = state[2]
+likelihood <- function(state) {
+  beta_H <- state[1]
+  beta_C <- state[2]
   
-  vals = matrix(0, N, 2)
+  vals <- matrix(0, N, 2)
   for (i in 1:N) {
-    results = SEIR(beta_H, beta_C, inc, inf)
-    vals[i, ] = metrics(results)
+    results <- SEIR(beta_H, beta_C, inc, inf)
+    vals[i, ] <- metrics(results)
   }
   
-  avg_vals = colMeans(vals)
+  avg_vals <- colMeans(vals)
   return(-log(score(avg_vals, target)))
 }
 
 #### Metropolis algorithm ####
 
 # Proposal function
-q = function(state) {
-  beta_H = state[1]
-  beta_C = state[2]
-  r = c(beta_H^2, beta_C^2 / 0.0001)
-  v = c(beta_H^2, beta_C^2 / 0.0001)
+q <- function(state) {
+  beta_H <- state[1]
+  beta_C <- state[2]
+  r <- c(beta_H^2, beta_C^2 / 0.0001)
+  v <- c(beta_H^2, beta_C^2 / 0.0001)
   
   return(pmax(rgamma(n = 2, shape = r, rate = v), 1e-3))
 }
 
 # MCMC
-metropolis = function(start, num_iter) {
-  chain = matrix(0, num_iter + 1, 2)
-  liks = matrix(0, num_iter + 1, 2)
+metropolis <- function(start, num_iter) {
+  chain <- matrix(0, num_iter + 1, 2)
+  liks <- matrix(0, num_iter + 1, 2)
   
   # Initialize current state.
-  curr = start
-  curr_lik = likelihood(curr)
+  curr <- start
+  curr_lik <- likelihood(curr)
   
   # Initialize best state.
-  best = curr
-  best_lik = curr_lik
+  best <- curr
+  best_lik <- curr_lik
   for (i in 1:num_iter) {
     # Save the current state and its likelihood.
-    chain[i, ] = curr
-    liks[i, ] = curr_lik
+    chain[i, ] <- curr
+    liks[i, ] <- curr_lik
     
     # Print current state and likelihood.
     print(i)
@@ -242,57 +233,56 @@ metropolis = function(start, num_iter) {
     message(paste0(i, '\t', curr, " ", round(curr_lik, 3), '\t'))
     
     # Get a proposed state and calculate its likelihood.
-    prop = q(curr)
-    prop_lik = likelihood(prop)
+    prop <- q(curr)
+    prop_lik <- likelihood(prop)
     message(paste0(prop, " ", round(prop_lik, 3), '\t'))
     
     # Compute the ratio of the scores of the two states and flip a coin.
-    r = exp(prop_lik - curr_lik)
-    p = runif(1)
+    r <- exp(prop_lik - curr_lik)
+    p <- runif(1)
     message(paste(round(r, 3), round(p, 3)))
     
     # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
-      curr = prop
-      curr_lik = prop_lik
+      curr <- prop
+      curr_lik <- prop_lik
       
       # If the new likelihood is better than the best we've seen so far, replace 
       # the best.
       if (curr_lik > best_lik) {
-        best = curr
-        best_lik = curr_lik
+        best <- curr
+        best_lik <- curr_lik
       }
     }
     
     # Save the chain, best state, and likelihoods so far.
-    save(chain, file = paste0(getwd(), '/chain.Rdata'))
-    save(liks, file = paste0(getwd(), '/liks.Rdata'))
-    save(best, file = paste0(getwd(), '/best.Rdata'))
+    save(chain, file <- paste0(getwd(), '/chain.Rdata'))
+    save(liks, file <- paste0(getwd(), '/liks.Rdata'))
+    save(best, file <- paste0(getwd(), '/best.Rdata'))
   }
   return(list(chain, liks, best))
 }
 
 # Solve for optimal values via MCMC.
-target = c(0.3, 0.25) # Target values.
-N = 3 # Number of times over which to average likelihood.
+target <- c(0.3, 0.25) # Target values.
+N <- 300 # Number of times over which to average likelihood.
 
 metropolis_results = metropolis(c(30, 0.12), 10)
 chain = metropolis_results[[1]]
 liks = metropolis_results[[2]]
 best = metropolis_results[[3]]
 
-
 # Validation
-beta_H = 30
-beta_C = 0.15
+beta_H <- 30
+beta_C <- 0.15
 
-t_0 = Sys.time()
-N = 1000
-vals = matrix(0, N, 2)
+t_0 <- Sys.time()
+N <- 1000
+vals <- matrix(0, N, 2)
 for (i in 1:N) {
-  results = SEIR(beta_H, beta_C, inc, inf)
-  vals[i, ] = metrics(results)
+  results <- SEIR(beta_H, beta_C, inc, inf)
+  vals[i, ] <- metrics(results)
   write.csv(vals, paste0(getwd(), '/vals.csv'))
 }
-t_1 = Sys.time()
-message(t_1 - t_0)
+t_1 <- Sys.time()
+print(t_1 - t_0)
