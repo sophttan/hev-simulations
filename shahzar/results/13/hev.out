@@ -312,3 +312,26 @@ Loading required package: parallel
 > 
 > t_0 <- Sys.time()
 > print(likelihood(state))
+[1] 2.693051
+> t_1 = Sys.time()
+> print(t_1 - t_0)
+Time difference of 17.0515 mins
+> 
+> t_0 <- Sys.time()
+> beta_H <- state[1]
+> beta_C <- state[2]
+> vals = matrix(0, N, 2)
+> for (i in 1:N) {
++   results = SEIR(beta_H, beta_C, inc, inf)
++   vals[i, ] = metrics(results)
++ }
+> avg_vals = colMeans(vals)
+> print(-log(score(avg_vals, target)))
+[1] 2.894127
+> t_1 = Sys.time()
+> print(t_1 - t_0)
+Time difference of 1.055129 hours
+> 
+> proc.time()
+    user   system  elapsed 
+6493.550  113.551 4828.031 
