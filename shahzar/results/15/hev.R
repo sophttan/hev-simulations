@@ -7,7 +7,7 @@ library(doParallel)
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
 print(detectCores())
-num_cores <- 8
+num_cores <- 12
 registerDoParallel(num_cores)
 
 time <- 365 # Number of days.

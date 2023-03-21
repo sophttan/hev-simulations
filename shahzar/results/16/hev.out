@@ -41,9 +41,7 @@ Loading required package: parallel
 > 
 > # Set up the number of cores used for parallelization.
 > # Use detectCores() to find out how many cores are available.
-> print(detectCores())
-[1] 24
-> num_cores <- 8
+> num_cores <- 12
 > registerDoParallel(num_cores)
 > 
 > time <- 365 # Number of days.
@@ -219,107 +217,40 @@ Loading required package: parallel
 +   return(c(idc, sar))
 + }
 > 
-> score <- function(obs, target) {
-+   # The score is the L² distance of the observed values from the target.
-+   return(sum((obs - target)^2))
-+ }
+> beta_Hs <- seq(35, 65, 0.5)
+> beta_Cs <- seq(0, 0.5, 0.02)
 > 
-> # The likelihood is calculated by first averaging the incidence and SAR over N
-> # simulations with the state parameters. The likelihood is the negative log
-> # score of the average incidence and SAR.
-> likelihood <- function(state) {
-+   beta_H <- state[1]
-+   beta_C <- state[2]
-+   
-+   vals <- foreach (i = 1:N, .combine = 'c') %dopar% {
-+     results <- SEIR(beta_H, beta_C, inc, inf)
-+     metrics(results)
-+   }
-+   vals <- matrix(vals, N, byrow = T)
-+   
-+   avg_vals <- colMeans(vals)
-+   return(-log(score(avg_vals, target)))
-+ }
+> a <- length(beta_Cs)
+> b <- length(beta_Hs)
 > 
-> #### Metropolis algorithm ####
-> 
-> # Proposal function
-> q <- function(state) {
-+   beta_H <- state[1]
-+   beta_C <- state[2]
-+   r <- c(beta_H^2, beta_C^2 / 0.0001)
-+   v <- c(beta_H, beta_C / 0.0001)
-+   
-+   return(pmax(rgamma(n = 2, shape = r, rate = v), 1e-3))
-+ }
-> 
-> # MCMC
-> metropolis <- function(start, num_iter) {
-+   chain <- matrix(0, num_iter + 1, 2)
-+   liks <- matrix(0, num_iter + 1, 2)
-+   
-+   # Initialize current state.
-+   curr <- start
-+   curr_lik <- likelihood(curr)
-+   
-+   # Initialize best state.
-+   best <- curr
-+   best_lik <- curr_lik
-+   for (i in 1:num_iter) {
-+     # Save the current state and its likelihood.
-+     chain[i, ] <- curr
-+     liks[i, ] <- curr_lik
+> reps <- 40
+> idcs <- array(rep(0, a * b * reps), dim = c(a, b, reps))
+> sars <- array(rep(0, a * b * reps), dim = c(a, b, reps))
+> for (i in 1:b) {
++   for (j in 1:a) {
++     beta_H <- beta_Hs[i]
++     beta_C <- beta_Cs[j]
 +     
-+     # Get a proposed state and calculate its likelihood.
-+     prop <- q(curr)
-+     prop_lik <- likelihood(prop)
-+     
-+     # Compute the ratio of the scores of the two states and flip a coin.
-+     r <- exp(prop_lik - curr_lik)
-+     p <- runif(1)
-+     
-+     # Print the current progress.
-+     prog_str = paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
-+                       ']\t', round(curr_lik, 3), '\t', 
-+                       '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
-+                       round(prop_lik, 3), 
-+                       '\t', round(r, 3), '\t', round(p, 3))
-+     message(prog_str)
-+     
-+     # Transition if the proposed state is better or if the coin flip succeeds.
-+     if (p < r) { 
-+       curr <- prop
-+       curr_lik <- prop_lik
-+       
-+       # If the new likelihood is better than the best we've seen so far, replace 
-+       # the best.
-+       if (curr_lik > best_lik) {
-+         best <- curr
-+         best_lik <- curr_lik
-+       }
++     idc_list <- rep(NA, reps)
++     sar_list <- rep(NA, reps)
++     t_0 <- Sys.time()
++     vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
++       results <- SEIR(beta_H, beta_C, inc, inf, verbose = F) 
++       metrics(results)
 +     }
-+     
-+     # Save the chain, best state, and likelihoods so far.
-+     save(chain, file = paste0(getwd(), '/chain.Rdata'))
-+     save(liks, file = paste0(getwd(), '/liks.Rdata'))
-+     save(best, file = paste0(getwd(), '/best.Rdata'))
++     t_1 <- Sys.time()
++     message(paste0(format(beta_H, nsmall = 1), '/65.0\t', 
++                    format(beta_C, nsmall = 2), '/0.50\t',  
++                    round(t_1 - t_0, 3)))
++     vals <- matrix(vals, reps, byrow = T)
++     idcs[i, j, ] <- vals[, 1]
++     sars[i, j, ] <- vals[, 2]
++       
++     write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
++     write.table(sars, file = 'sars.txt', row.names = F, col.names = F)
 +   }
-+   return(list(chain, liks, best))
 + }
-> 
-> beta_H <- 30
-> beta_C <- 0.2
-> N <- 1000
-> state <- c(beta_H, beta_C)
-> target <- c(0.3, 0.25)
-> 
-> t_0 <- Sys.time()
-> print(likelihood(state))
-[1] 2.815504
-> t_1 <- Sys.time()
-> print(t_1 - t_0)
-Time difference of 43.87422 mins
-> 
-> proc.time()
-     user    system   elapsed 
-13615.878   295.503  2637.272 
+35.0/65.0	0.00/0.50	32.05
+35.0/65.0	0.02/0.50	32.959
+35.0/65.0	0.04/0.50	37.492
+35.0/65.0	0.06/0.50	41.691

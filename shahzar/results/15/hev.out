@@ -43,7 +43,7 @@ Loading required package: parallel
 > # Use detectCores() to find out how many cores are available.
 > print(detectCores())
 [1] 24
-> num_cores <- 8
+> num_cores <- 12
 > registerDoParallel(num_cores)
 > 
 > time <- 365 # Number of days.
@@ -315,11 +315,11 @@ Loading required package: parallel
 > 
 > t_0 <- Sys.time()
 > print(likelihood(state))
-[1] 2.815504
+[1] 2.776641
 > t_1 <- Sys.time()
 > print(t_1 - t_0)
-Time difference of 43.87422 mins
+Time difference of 29.6101 mins
 > 
 > proc.time()
      user    system   elapsed 
-13615.878   295.503  2637.272 
+15487.369   294.072  1781.832 
