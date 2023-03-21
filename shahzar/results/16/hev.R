@@ -185,14 +185,15 @@ metrics <- function(results) {
 beta_Hs <- seq(35, 65, 0.5)
 beta_Cs <- seq(0, 0.5, 0.02)
 
-a <- length(beta_Cs)
-b <- length(beta_Hs)
+a <- length(beta_Hs)
+b <- length(beta_Cs)
 
 reps <- 40
 idcs <- array(rep(0, a * b * reps), dim = c(a, b, reps))
 sars <- array(rep(0, a * b * reps), dim = c(a, b, reps))
-for (i in 1:b) {
-  for (j in 1:a) {
+toc <- 0
+for (i in 1:a) {
+  for (j in 1:b) {
     beta_H <- beta_Hs[i]
     beta_C <- beta_Cs[j]
     
@@ -204,9 +205,10 @@ for (i in 1:b) {
       metrics(results)
     }
     t_1 <- Sys.time()
+    tocs <- tocs + (t_1 - t_0)
     message(paste0(format(beta_H, nsmall = 1), '/65.0\t', 
                    format(beta_C, nsmall = 2), '/0.50\t',  
-                   round(t_1 - t_0, 3)))
+                   round(tocs, 3)))
     vals <- matrix(vals, reps, byrow = T)
     idcs[i, j, ] <- vals[, 1]
     sars[i, j, ] <- vals[, 2]
