@@ -124,8 +124,8 @@ SEIR <- function(params, inc, inf, verbose = F) {
       mutate(I_C = sum(I) - I_H)
     
     # Calculate household risk and community risk.
-    beta_H <- state[1]
-    beta_C <- state[2]
+    beta_H <- params[1]
+    beta_C <- params[2]
     risk_H <- beta_H * data$S * I_data$I_H / N
     risk_C <- beta_C * data$S * I_data$I_C / N
     
@@ -199,7 +199,7 @@ score <- function(obs, target) {
 # The likelihood is calculated by first averaging the incidence and SAR over n
 # simulations with the state parameters. The likelihood is the negative log
 # score of the average incidence and SAR.
-likelihood <- function(state, n = 300) {
+likelihood <- function(state, target, n = 300) {
   vals <- foreach (i = 1:n, .combine = 'c') %dopar% {
     results <- SEIR(state, inc, inf)
     metrics(results)
@@ -219,13 +219,13 @@ q <- function(state, sds = c(1, 0.01)) {
 }
 
 # MCMC
-metropolis <- function(start, num_sim, num_iter) {
+metropolis <- function(start, target, num_sim, num_iter) {
   path <- matrix(NA, num_iter + 1, 2)
   liks <- matrix(NA, num_iter + 1, 2)
   
   # Initialize current state.
   curr <- start
-  curr_lik <- likelihood(curr, num_sim)
+  curr_lik <- likelihood(curr, target, num_sim)
   
   # Initialize best state.
   best <- curr
@@ -237,7 +237,7 @@ metropolis <- function(start, num_sim, num_iter) {
     
     # Get a proposed state and calculate its likelihood.
     prop <- q(curr)
-    prop_lik <- likelihood(prop, num_sim)
+    prop_lik <- likelihood(prop, target, num_sim)
     
     # Compute the ratio of the scores of the two states and generate a uniform 
     # bit.
@@ -273,5 +273,5 @@ metropolis <- function(start, num_sim, num_iter) {
 
 # Solve for optimal values via MCMC.
 target <- c(0.3, 0.25)
-start <- c(59, 0.12)
-metropolis(start, target, num_sim = 300, num_iter = 10000)
+start <- c(56, 0.12)
+results <- metropolis(start, target, num_sim = 300, num_iter = 10000)
