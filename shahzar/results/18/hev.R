@@ -154,7 +154,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
         group_by(HH) %>%
         # Find households with at least 1 currently infectious person.
         # If exactly 1 infectious person in household, assign all new H exposures to infectious person.
-        # If there are multiple infectious people, assign all infections to an infectious person at random.
+        # If there are multiple infectious people, assign all infections to the first infectious person.
         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I_H), 0))
       
       results$I_num <- results$I_num + I_data$new_I_H
@@ -183,8 +183,8 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
-beta_Hs <- seq(40, 60, 0.5)
-beta_Cs <- seq(0, 0.2, 0.01)
+beta_Hs <- seq(55, 65, 0.25)
+beta_Cs <- seq(0.05, 0.15, 0.01)
 
 a <- length(beta_Hs)
 b <- length(beta_Cs)
@@ -210,8 +210,8 @@ for (i in 1:a) {
     vals <- matrix(vals, reps, byrow = T)
     idcs[i, j, ] <- vals[, 1]
     sars[i, j, ] <- vals[, 2]
-    message(paste0(beta_H, '/60\t', 
-                   format(beta_C, nsmall = 2), '/0.20\t',  
+    message(paste0(beta_H, '/65\t', 
+                   format(beta_C, nsmall = 2), '/0.15\t',  
                    format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
                    format(mean(vals[, 1]), nsmall = 3), '\t', 
                    format(mean(vals[, 2]), nsmall = 3)))

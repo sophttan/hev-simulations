@@ -152,9 +152,12 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
         mutate(new_I_H = new_inf_H) %>%
         group_by(HH) %>%
         # Find households with at least 1 currently infectious person.
-        # If exactly 1 infectious person in household, assign all new H exposures to infectious person.
-        # If there are multiple infectious people, assign all infections to an infectious person at random.
-        mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I_H), 0))
+        # If exactly 1 infectious person in household, assign all new H 
+        # exposures to infectious person. If there are multiple infectious 
+        # people, assign all infections to the infectious person with the first 
+        # ID.
+        mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
+                                sum(new_I_H), 0))
       
       results$I_num <- results$I_num + I_data$new_I_H
         
@@ -242,12 +245,10 @@ metropolis <- function(start, num_iter) {
     p <- runif(1)
     
     # Print the current progress.
-    prog_str = paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
-                      ']\t', round(curr_lik, 3), '\t', 
-                      '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
-                      round(prop_lik, 3), 
-                      '\t', round(r, 3), '\t', round(p, 3))
-    message(prog_str)
+    message(paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
+                   ']\t', round(curr_lik, 3), '\t', 
+                   '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
+                   round(prop_lik, 3), '\t', round(r, 3), '\t', round(p, 3)))
     
     # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
@@ -263,9 +264,9 @@ metropolis <- function(start, num_iter) {
     }
     
     # Save the chain, best state, and likelihoods so far.
-    save(chain, file = paste0(getwd(), '/chain.Rdata'))
-    save(liks, file = paste0(getwd(), '/liks.Rdata'))
-    save(best, file = paste0(getwd(), '/best.Rdata'))
+    write.table(chain, file = 'chain.txt')
+    write.table(liks, file = 'liks.txt')
+    write.table(best, file = 'best.txt')
   }
   return(list(chain, liks, best))
 }
@@ -274,7 +275,11 @@ metropolis <- function(start, num_iter) {
 target <- c(0.3, 0.25) # Target values.
 N <- 300 # Number of times over which to average likelihood.
 
-metropolis_results = metropolis(c(30, 0.15), 1000)
+metropolis_results = metropolis(c(55, 0.12), 3)
 chain = metropolis_results[[1]]
 liks = metropolis_results[[2]]
 best = metropolis_results[[3]]
+
+write.table(chain, file = 'chain.txt', row.names = F, col.names = F)
+write.table(liks, file = 'liks.txt', row.names = F, col.names = F)
+write.table(best, file = 'best.txt', row.names = F, col.names = F)

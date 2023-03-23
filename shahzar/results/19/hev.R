@@ -7,7 +7,7 @@ library(doParallel)
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
 message(detectCores())
-num_cores <- 18
+num_cores <- 24
 registerDoParallel(num_cores)
 
 time <- 365 # Number of days.
@@ -194,7 +194,7 @@ for (i in 1:a) {
                    format(beta_C, nsmall = 2), '/1.00\t',  
                    format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
                    format(mean(vals[, 1]), nsmall = 3), '\t', 
-                   format(mean(vals[, 2], na.rm = T), nsmall = 3)))
+                   format(mean(vals[, 2]), nsmall = 3)))
     write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
     write.table(prps, file = 'prps.txt', row.names = F, col.names = F)
   }
