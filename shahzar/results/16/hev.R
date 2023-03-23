@@ -6,7 +6,8 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
-num_cores <- 12
+message(detectCores())
+num_cores <- 18
 registerDoParallel(num_cores)
 
 time <- 365 # Number of days.
@@ -205,10 +206,10 @@ for (i in 1:a) {
       metrics(results)
     }
     t_1 <- Sys.time()
-    tocs <- tocs + (t_1 - t_0)
+    toc <- toc + (t_1 - t_0)
     message(paste0(format(beta_H, nsmall = 1), '/65.0\t', 
                    format(beta_C, nsmall = 2), '/0.50\t',  
-                   round(tocs, 3)))
+                   round(toc, 3), '\t(', round(t_1 - t_0, 3), ')'))
     vals <- matrix(vals, reps, byrow = T)
     idcs[i, j, ] <- vals[, 1]
     sars[i, j, ] <- vals[, 2]

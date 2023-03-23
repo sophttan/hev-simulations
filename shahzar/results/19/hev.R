@@ -6,7 +6,8 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
-num_cores <- 5
+message(detectCores())
+num_cores <- 18
 registerDoParallel(num_cores)
 
 time <- 365 # Number of days.
@@ -76,7 +77,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   for(t in 1:time) {
     if (verbose) {
       if (t %% 10 == 0) {
-        cat(paste0(t, ' '))
+        message(t)
       }
     }
     
@@ -105,13 +106,6 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       
       # Record time at which infectious period starts.
       results$TIME[new_inf] <- t
-      
-      # Save the number of susceptible people in each infectious 
-      # individual's household.
-      S_data <- data %>% group_by(HH) %>% 
-        mutate(S_tot = sum(S)) %>% 
-        select(HH, S_tot)
-      results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
     }
     
     # I_H is the number of infections inside each household.
@@ -142,23 +136,9 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       # Remove susceptible status.
       data$S[new_exposed] <- 0
       
-      # Label community infections with C and household infections with H.
+      # Label infections.
       results$TYPE[new_inf_C == 1] <- 'C'
       results$TYPE[new_inf_H == 1] <- 'H'
-      
-      # Get number of new infections in each household.
-      I_data <- I_data %>%
-        select(ID, HH, I, I_H) %>%
-        mutate(new_I_H = new_inf_H) %>%
-        group_by(HH) %>%
-        # Find households with at least 1 currently infectious person.
-        # If exactly 1 infectious person in household, assign all new H exposures to infectious person.
-        # If there are multiple infectious people, assign all infections to an infectious person at random.
-        mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I_H), 0))
-      
-      results$I_num <- results$I_num + I_data$new_I_H
-        
-      # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
     }
     
@@ -173,108 +153,52 @@ metrics <- function(results) {
   # Incidence is the proportion of the population that became infected.
   idc <- mean(!is.na(results$TIME))
   
-  # If incidence is 0, the SAR is undefined.
-  sar <- NA
+  # If incidence is 0, the proportion of household infections is undefined.
+  prp <- NA
   if (idc != 0) {
-    # The SAR is the average SAR for each individual that was infectious.
-    sar <- mean(results$I_num / results$S_num, na.rm = T)
+    # The proportion of household infections is the proportion of infections that
+    # were from the household.
+    prp <- mean(results[!is.na(results$TIME), ]$TYPE == 'H')
   }
-  return(c(idc, sar))
+  return(c(idc, prp))
 }
 
-score <- function(obs, target) {
-  # The score is the L² distance of the observed values from the target.
-  return(sum((obs - target)^2))
-}
+beta_Hs <- seq(10, 70, 1)
+beta_Cs <- seq(0, 1, 0.05)
 
-# The likelihood is calculated by first averaging the incidence and SAR over N
-# simulations with the state parameters. The likelihood is the negative log
-# score of the average incidence and SAR.
-likelihood <- function(state) {
-  beta_H <- state[1]
-  beta_C <- state[2]
-  
-  vals <- foreach (i = 1:N, .combine = 'c') %dopar% {
-    results <- SEIR(beta_H, beta_C, inc, inf)
-    metrics(results)
-  }
-  vals <- matrix(vals, N, byrow = T)
-  
-  avg_vals <- colMeans(vals)
-  return(-log(score(avg_vals, target)))
-}
+a <- length(beta_Hs)
+b <- length(beta_Cs)
 
-#### Metropolis algorithm ####
-
-# Proposal function
-q <- function(state) {
-  beta_H <- state[1]
-  beta_C <- state[2]
-  r <- c(beta_H^2, beta_C^2 / 0.0001)
-  v <- c(beta_H, beta_C / 0.0001)
-  
-  return(pmax(rgamma(n = 2, shape = r, rate = v), 1e-3))
-}
-
-# MCMC
-metropolis <- function(start, num_iter) {
-  chain <- matrix(0, num_iter + 1, 2)
-  liks <- matrix(0, num_iter + 1, 2)
-  
-  # Initialize current state.
-  curr <- start
-  curr_lik <- likelihood(curr)
-  
-  # Initialize best state.
-  best <- curr
-  best_lik <- curr_lik
-  for (i in 1:num_iter) {
-    # Save the current state and its likelihood.
-    chain[i, ] <- curr
-    liks[i, ] <- curr_lik
+reps <- 40
+idcs <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+prps <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+t_tot <- 0
+for (i in 1:a) {
+  for (j in 1:b) {
+    beta_H <- beta_Hs[i]
+    beta_C <- beta_Cs[j]
     
-    # Get a proposed state and calculate its likelihood.
-    prop <- q(curr)
-    prop_lik <- likelihood(prop)
-    
-    # Compute the ratio of the scores of the two states and flip a coin.
-    r <- exp(prop_lik - curr_lik)
-    p <- runif(1)
-    
-    # Print the current progress.
-    prog_str = paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
-                      ']\t', round(curr_lik, 3), '\t', 
-                      '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
-                      round(prop_lik, 3), 
-                      '\t', round(r, 3), '\t', round(p, 3))
-    message(prog_str)
-    
-    # Transition if the proposed state is better or if the coin flip succeeds.
-    if (p < r) { 
-      curr <- prop
-      curr_lik <- prop_lik
-      
-      # If the new likelihood is better than the best we've seen so far, replace 
-      # the best.
-      if (curr_lik > best_lik) {
-        best <- curr
-        best_lik <- curr_lik
-      }
+    idc_list <- rep(NA, reps)
+    prp_list <- rep(NA, reps)
+    t_0 <- Sys.time()
+    vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
+      results <- SEIR(beta_H, beta_C, inc, inf, verbose = F) 
+      metrics(results)
     }
-    
-    # Save the chain, best state, and likelihoods so far.
-    save(chain, file = paste0(getwd(), '/chain.Rdata'))
-    save(liks, file = paste0(getwd(), '/liks.Rdata'))
-    save(best, file = paste0(getwd(), '/best.Rdata'))
+    t_1 <- Sys.time()
+    t_tot <- t_tot + (t_1 - t_0)
+    vals <- matrix(vals, reps, byrow = T)
+    idcs[i, j, ] <- vals[, 1]
+    prps[i, j, ] <- vals[, 2]
+    message(paste0(beta_H, '/70\t', 
+                   format(beta_C, nsmall = 2), '/1.00\t',  
+                   format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
+                   format(mean(vals[, 1]), nsmall = 3), '\t', 
+                   format(mean(vals[, 2], na.rm = T), nsmall = 3)))
+    write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
+    write.table(prps, file = 'prps.txt', row.names = F, col.names = F)
   }
-  return(list(chain, liks, best))
+  message('\n')
 }
-
-# Solve for optimal values via MCMC.
-target <- c(0.3, 0.25) # Target values.
-N <- 300 # Number of times over which to average likelihood.
-
-metropolis_results = metropolis(c(30, 0.15), 1000)
-chain = metropolis_results[[1]]
-liks = metropolis_results[[2]]
-best = metropolis_results[[3]]
+write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
+write.table(prps, file = 'prps.txt', row.names = F, col.names = F)
