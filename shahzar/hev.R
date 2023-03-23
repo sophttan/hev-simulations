@@ -200,7 +200,7 @@ score <- function(obs, target) {
 # simulations with the state parameters. The likelihood is the negative log
 # score of the average incidence and SAR.
 likelihood <- function(state, target, n = 300) {
-  vals <- foreach (i = 1:n, .combine = 'c') %dopar% {
+  vals <- foreach (i = 1:n, .combine = c) %dopar% {
     results <- SEIR(state, inc, inf)
     metrics(results)
   }
