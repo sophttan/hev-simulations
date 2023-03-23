@@ -177,9 +177,7 @@ for (i in 1:a) {
   for (j in 1:b) {
     beta_H <- beta_Hs[i]
     beta_C <- beta_Cs[j]
-    
-    idc_list <- rep(NA, reps)
-    prp_list <- rep(NA, reps)
+      
     t_0 <- Sys.time()
     vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
       results <- SEIR(beta_H, beta_C, inc, inf, verbose = F) 

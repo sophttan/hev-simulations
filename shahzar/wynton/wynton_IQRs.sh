@@ -5,8 +5,8 @@
 #$ -j y               # STDERR and STDOUT should be joined
 #$ -l mem_free=4G     # job requires up to x GiB of RAM per slot
 #$ -l scratch=8G      # job requires up to x GiB of local /scratch space
-#$ -l h_rt=100:00:00   # job requires up to x hours of runtime
-#$ -t 1-676        # array (serial) job with x tasks (remove first '#' to enable)
+#$ -l h_rt=100:00:00  # job requires up to x hours of runtime
+#$ -t 1-676           # array (serial) job with x tasks (remove first '#' to enable)
 #$ -r y               # if job crashes, it should be restarted
 
 ## If you array jobs (option -t), this script will run T times, once per task.

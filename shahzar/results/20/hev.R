@@ -5,7 +5,7 @@ library(foreach)
 library(doParallel)
 
 # Set up the number of cores used for parallelization.
-num_cores <- 8
+num_cores <- 18
 registerDoParallel(num_cores)
 
 #########################
@@ -209,77 +209,66 @@ likelihood <- function(state, target, n = 300) {
   return(-log(score(avg_vals, target)))
 }
 
-# Proposal function
-q <- function(state, sds = c(1, 0.01)) {
-  # Sample from gamma distributions with means at the current state.
-  # The SDs correspond to the step-size of the chain for each parameter.
-  r <- (state / sds)^2
-  v <- state / sds^2
-  return(rgamma(n = 2, shape = r, rate = v))
-}
+###################
+#### FIRST SET ####
+###################
+beta_H <- 53.651
+beta_C <- 0.121
+params <- c(beta_H, beta_C)
 
-# MCMC
-metropolis <- function(start, target, num_sim, num_iter) {
-  path <- matrix(NA, num_iter + 1, 2)
-  liks <- rep(NA, num_iter + 1)
-  
-  # Initialize current state.
-  curr <- start
-  curr_lik <- likelihood(curr, target, num_sim)
-  
-  # Initialize best state.
-  best <- curr
-  best_lik <- curr_lik
-  for (i in 1:num_iter) {
-    # Save the current state and its likelihood.
-    path[i, ] <- curr
-    liks[i] <- curr_lik
-    
-    # Get a proposed state and calculate its likelihood.
-    prop <- q(curr)
-    prop_lik <- likelihood(prop, target, num_sim)
-    
-    # Compute the ratio of the scores of the two states and generate a uniform 
-    # bit.
-    r <- exp(prop_lik - curr_lik)
-    p <- runif(1)
-    
-    # Print the current progress.
-    message(paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
-                   ']\t', round(curr_lik, 3), '\t', 
-                   '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
-                   round(prop_lik, 3), '\t', round(r, 3), '\t', round(p, 3)))
-    
-    # Transition if the proposed state is better or if the coin flip succeeds.
-    if (p < r) { 
-      curr <- prop
-      curr_lik <- prop_lik
-      
-      # If the new likelihood is better than the best we've seen so far, replace 
-      # the best.
-      if (curr_lik > best_lik) {
-        best <- curr
-        best_lik <- curr_lik
-      }
-    }
-    
-    # Save the path, best state, and likelihoods so far.
-    write.table(path, file = 'path.txt', row.names = F, col.names = F)
-    write.table(liks, file = 'liks.txt', row.names = F, col.names = F)
-    write.table(best, file = 'best.txt', row.names = F, col.names = F)
-  }
-  path[num_iter + 1, ] <- curr
-  liks[num_iter + 1] <- curr_lik
-  return(list(path, liks, best))
+reps <- 10000
+idcs <- rep(NA, reps)
+sars <- rep(NA, reps)
+vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+  results <- SEIR(params, inc, inf, verbose = F) 
+  metrics(results)
 }
+vals <- matrix(vals, reps, byrow = T)
+idcs <- vals[, 1]
+sars <- vals[, 2]
+write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
+write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 
-# Solve for optimal values via MCMC.
-target <- c(0.3, 0.25)
-start <- c(57.099, 0.116)
-results <- metropolis(start, target, num_sim = 500, num_iter = 100)
-path <- results[[1]]
-liks <- results[[2]]
-best <- results[[3]]
-write.table(path, file = 'path.txt', row.names = F, col.names = F)
-write.table(liks, file = 'liks.txt', row.names = F, col.names = F)
-write.table(best, file = 'best.txt', row.names = F, col.names = F)
+
+####################
+#### SECOND SET ####
+####################
+message('Set 2')
+beta_H <- 55.5
+beta_C <- 0.08
+params <- c(beta_H, beta_C)
+
+reps <- 10000
+idcs <- rep(NA, reps)
+sars <- rep(NA, reps)
+vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+  results <- SEIR(params, inc, inf, verbose = F) 
+  metrics(results)
+}
+vals <- matrix(vals, reps, byrow = T)
+idcs <- vals[, 1]
+sars <- vals[, 2]
+write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
+write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
+
+
+###################
+#### THIRD SET ####
+###################
+message('Set 3')
+beta_H <- 58.5
+beta_C <- 0.06
+params <- c(beta_H, beta_C)
+
+reps <- 10000
+idcs <- rep(NA, reps)
+sars <- rep(NA, reps)
+vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+  results <- SEIR(params, inc, inf, verbose = F) 
+  metrics(results)
+}
+vals <- matrix(vals, reps, byrow = T)
+idcs <- vals[, 1]
+sars <- vals[, 2]
+write.table(idcs, file = 'idcs_3.txt', row.names = F, col.names = F)
+write.table(sars, file = 'sars_3.txt', row.names = F, col.names = F)
