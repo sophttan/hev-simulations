@@ -234,7 +234,7 @@ write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 #### SECOND SET ####
 ####################
 message('Set 2')
-beta_H <- 55.5
+beta_H <- 60.25
 beta_C <- 0.08
 params <- c(beta_H, beta_C)
 
@@ -256,8 +256,8 @@ write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
 #### THIRD SET ####
 ###################
 message('Set 3')
-beta_H <- 58.5
-beta_C <- 0.06
+beta_H <- 56.25
+beta_C <- 0.07
 params <- c(beta_H, beta_C)
 
 reps <- 10000
