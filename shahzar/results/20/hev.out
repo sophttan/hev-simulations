@@ -281,3 +281,35 @@ Set 2
 +   results <- SEIR(params, inc, inf, verbose = F) 
 +   metrics(results)
 + }
+> vals <- matrix(vals, reps, byrow = T)
+> idcs <- vals[, 1]
+> sars <- vals[, 2]
+> write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
+> write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
+> 
+> 
+> ###################
+> #### THIRD SET ####
+> ###################
+> message('Set 3')
+Set 3
+> beta_H <- 56.25
+> beta_C <- 0.07
+> params <- c(beta_H, beta_C)
+> 
+> reps <- 10000
+> idcs <- rep(NA, reps)
+> sars <- rep(NA, reps)
+> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
++   results <- SEIR(params, inc, inf, verbose = F) 
++   metrics(results)
++ }
+> vals <- matrix(vals, reps, byrow = T)
+> idcs <- vals[, 1]
+> sars <- vals[, 2]
+> write.table(idcs, file = 'idcs_3.txt', row.names = F, col.names = F)
+> write.table(sars, file = 'sars_3.txt', row.names = F, col.names = F)
+> 
+> proc.time()
+      user     system    elapsed 
+317409.050   5314.524  22009.258 
