@@ -210,7 +210,7 @@ likelihood <- function(state, target, n = 300) {
 }
 
 # Proposal function
-q <- function(state, sds = c(1, 0.01)) {
+q <- function(state, sds = c(0.5, 0.005)) {
   # Sample from gamma distributions with means at the current state.
   # The SDs correspond to the step-size of the chain for each parameter.
   r <- (state / sds)^2
@@ -274,9 +274,9 @@ metropolis <- function(start, target, num_sim, num_iter) {
 }
 
 # Solve for optimal values via MCMC.
-target <- c(0.3, 0.25)
-start <- c(57.099, 0.116)
-results <- metropolis(start, target, num_sim = 500, num_iter = 100)
+target <- c(0.1, 0.25)
+start <- c(56.76645, 0.08619)
+results <- metropolis(start, target, num_sim = 500, num_iter = 10000)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]
