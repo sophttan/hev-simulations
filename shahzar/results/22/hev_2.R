@@ -188,7 +188,7 @@ for (i in 1:a) {
     vals <- matrix(vals, reps, byrow = T)
     idcs[i, j, ] <- vals[, 1]
     prps[i, j, ] <- vals[, 2]
-    message(paste0(beta_H, '/130\t', 
+    message(paste0(beta_H, '/160\t', 
                    format(beta_C, nsmall = 2), '/0.20\t',  
                    format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
                    format(mean(vals[, 1]), nsmall = 3), '\t', 
