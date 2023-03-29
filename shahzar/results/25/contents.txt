@@ -1,0 +1,2 @@
+10,000 simulations on 3 parameter sets. Examine how many simulations are required
+for reasonable convergence to the mean.

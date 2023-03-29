@@ -5,7 +5,7 @@ library(foreach)
 library(doParallel)
 
 # Set up the number of cores used for parallelization.
-num_cores <- 8
+num_cores <- 24
 registerDoParallel(num_cores)
 
 #########################
@@ -215,7 +215,7 @@ likelihood <- function(state, target, n = 300) {
 }
 
 # Proposal function
-q <- function(state, sds = c(0.5, 0.005)) {
+q <- function(state, sds = c(0.1, 0.001)) {
   # Sample from a multivariate normal distributions centered at the current 
   # state. The SDs roughly correspond to the step-size of the chain for each 
   # parameter.
@@ -268,9 +268,9 @@ metropolis <- function(start, target, num_sim, num_iter) {
     }
     
     # Save the path, best state, and likelihoods so far.
-    write.table(path, file = 'path.txt', row.names = F, col.names = F)
-    write.table(liks, file = 'liks.txt', row.names = F, col.names = F)
-    write.table(best, file = 'best.txt', row.names = F, col.names = F)
+    write.table(path, file = '30/path.txt', row.names = F, col.names = F)
+    write.table(liks, file = '30/liks.txt', row.names = F, col.names = F)
+    write.table(best, file = '30/best.txt', row.names = F, col.names = F)
   }
   path[num_iter + 1, ] <- curr
   liks[num_iter + 1] <- curr_lik
@@ -278,12 +278,12 @@ metropolis <- function(start, target, num_sim, num_iter) {
 }
 
 # Solve for optimal values via MCMC.
-target <- c(0.1, 0.25)
-start <- c(53.6136261376403, 0.086607502588279)
-results <- metropolis(start, target, num_sim = 1000, num_iter = 1000)
+target <- c(0.30, 0.25)
+start <- c(51.2386100875685, 0.122167209713071)
+results <- metropolis(start, target, num_sim = 1000, num_iter = 500)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]
-write.table(path, file = 'path.txt', row.names = F, col.names = F)
-write.table(liks, file = 'liks.txt', row.names = F, col.names = F)
-write.table(best, file = 'best.txt', row.names = F, col.names = F)
+write.table(path, file = '30/path.txt', row.names = F, col.names = F)
+write.table(liks, file = '30/liks.txt', row.names = F, col.names = F)
+write.table(best, file = '30/best.txt', row.names = F, col.names = F)

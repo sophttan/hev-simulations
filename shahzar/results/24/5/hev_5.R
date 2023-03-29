@@ -5,7 +5,7 @@ library(foreach)
 library(doParallel)
 
 # Set up the number of cores used for parallelization.
-num_cores <- 8
+num_cores <- 24
 registerDoParallel(num_cores)
 
 #########################
@@ -200,11 +200,6 @@ score <- function(obs, target) {
 # simulations with the state parameters. The likelihood is the negative log
 # score of the average incidence and SAR.
 likelihood <- function(state, target, n = 300) {
-  # If either parameter is nonpositive, do not transition to that state.
-  if (any(state <= 0)) {
-    return(-Inf)
-  }
-  # Otherwise, find the average incidence and SAR and compute likelihood.
   vals <- foreach (i = 1:n, .combine = c) %dopar% {
     results <- SEIR(state, inc, inf)
     metrics(results)
@@ -216,10 +211,11 @@ likelihood <- function(state, target, n = 300) {
 
 # Proposal function
 q <- function(state, sds = c(0.5, 0.005)) {
-  # Sample from a multivariate normal distributions centered at the current 
-  # state. The SDs roughly correspond to the step-size of the chain for each 
-  # parameter.
-  return(rnorm(n = 2, mean = state, sd = sds))
+  # Sample from gamma distributions with means at the current state.
+  # The SDs correspond to the step-size of the chain for each parameter.
+  r <- (state / sds)^2
+  v <- state / sds^2
+  return(rgamma(n = 2, shape = r, rate = v))
 }
 
 # MCMC
@@ -249,9 +245,9 @@ metropolis <- function(start, target, num_sim, num_iter) {
     p <- runif(1)
     
     # Print the current progress.
-    message(paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 5), 
+    message(paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 3), 
                    ']\t', round(curr_lik, 3), '\t', 
-                   '\t[', round(prop[1], 3), '\t', round(prop[2], 5), ']\t',
+                   '\t[', round(prop[1], 3), '\t', round(prop[2], 3), ']\t',
                    round(prop_lik, 3), '\t', round(r, 3), '\t', round(p, 3)))
     
     # Transition if the proposed state is better or if the coin flip succeeds.
@@ -278,8 +274,8 @@ metropolis <- function(start, target, num_sim, num_iter) {
 }
 
 # Solve for optimal values via MCMC.
-target <- c(0.1, 0.25)
-start <- c(53.6136261376403, 0.086607502588279)
+target <- c(0.05, 0.25)
+start <- c(56.5997291895948, 0.0662600954950668)
 results <- metropolis(start, target, num_sim = 1000, num_iter = 1000)
 path <- results[[1]]
 liks <- results[[2]]
