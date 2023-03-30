@@ -177,6 +177,7 @@ SEIR <- function(params, inc, inf, verbose = F) {
   return(results)
 }
 
+
 metrics <- function(results) {
   # Incidence is the proportion of the population that became infected.
   idc <- mean(!is.na(results$TIME))
@@ -190,51 +191,52 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
+
 ###################
 #### FIRST SET ####
 ###################
-message('Set 1')
-params <- c(56.2348166792159, 0.0690656636591525)
+#message('Set 1')
+#params <- c(56.2348166792159, 0.0690656636591525)
 
-reps <- 10000
-idcs <- rep(NA, reps)
-sars <- rep(NA, reps)
-vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-  results <- SEIR(params, inc, inf, verbose = F) 
-  metrics(results)
-}
-vals <- matrix(vals, reps, byrow = T)
-idcs <- vals[, 1]
-sars <- vals[, 2]
-write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
-write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
+#reps <- 10000
+#idcs <- rep(NA, reps)
+#sars <- rep(NA, reps)
+#vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+#  results <- SEIR(params, inc, inf, verbose = F) 
+#  metrics(results)
+#}
+#vals <- matrix(vals, reps, byrow = T)
+#idcs <- vals[, 1]
+#sars <- vals[, 2]
+#write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
+#write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 
 
 ####################
 #### SECOND SET ####
 ####################
-message('Set 2')
-params <- c(54.6267093106321, 0.087119522123414)
+#message('Set 2')
+#params <- c(54.6267093106321, 0.087119522123414)
 
-reps <- 10000
-idcs <- rep(NA, reps)
-sars <- rep(NA, reps)
-vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-  results <- SEIR(params, inc, inf, verbose = F) 
-  metrics(results)
-}
-vals <- matrix(vals, reps, byrow = T)
-idcs <- vals[, 1]
-sars <- vals[, 2]
-write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
-write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
+#reps <- 10000
+#idcs <- rep(NA, reps)
+#sars <- rep(NA, reps)
+#vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+#  results <- SEIR(params, inc, inf, verbose = F) 
+#  metrics(results)
+#}
+#vals <- matrix(vals, reps, byrow = T)
+#idcs <- vals[, 1]
+#sars <- vals[, 2]
+#write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
+#write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
 
 
 ###################
 #### THIRD SET ####
 ###################
 message('Set 3')
-params <- c(51.2386100875685, 0.122167209713071
+params <- c(51.2386100875685, 0.122167209713071)
 
 reps <- 10000
 idcs <- rep(NA, reps)

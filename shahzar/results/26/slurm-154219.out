@@ -1,0 +1,19 @@
+slurmstepd-scf-sm22: error: get_exit_code task 0 died by signal: 15
+slurmstepd-scf-sm22: error: If munged is up, restart with --num-threads=10
+slurmstepd-scf-sm22: error: Munge encode failed: Failed to access "/run/munge/munge.socket.2": No such file or directory
+slurmstepd-scf-sm22: error: authentication: Invalid authentication credential
+slurmstepd-scf-sm22: error: If munged is up, restart with --num-threads=10
+slurmstepd-scf-sm22: error: Munge encode failed: Failed to access "/run/munge/munge.socket.2": No such file or directory
+slurmstepd-scf-sm22: error: authentication: Invalid authentication credential
+slurmstepd-scf-sm22: error: If munged is up, restart with --num-threads=10
+slurmstepd-scf-sm22: error: Munge encode failed: Failed to access "/run/munge/munge.socket.2": No such file or directory
+slurmstepd-scf-sm22: error: authentication: Invalid authentication credential
+slurmstepd-scf-sm22: error: If munged is up, restart with --num-threads=10
+slurmstepd-scf-sm22: error: Munge encode failed: Failed to access "/run/munge/munge.socket.2": No such file or directory
+slurmstepd-scf-sm22: error: authentication: Invalid authentication credential
+slurmstepd-scf-sm22: error: If munged is up, restart with --num-threads=10
+slurmstepd-scf-sm22: error: Munge encode failed: Failed to access "/run/munge/munge.socket.2": No such file or directory
+slurmstepd-scf-sm22: error: authentication: Invalid authentication credential
+slurmstepd-scf-sm22: error: If munged is up, restart with --num-threads=10
+slurmstepd-scf-sm22: error: Munge encode failed: Failed to access "/run/munge/munge.socket.2": No such file or directory
+slurmstepd-scf-sm22: error: authentication: Invalid authentication credential

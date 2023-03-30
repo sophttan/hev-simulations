@@ -279,7 +279,7 @@ metropolis <- function(start, target, num_sim, num_iter) {
 
 # Solve for optimal values via MCMC.
 target <- c(0.1, 0.25)
-start <- c(54.6267093106321, 0.087119522123414)
+start <- c(55.0560239597619, 0.0849340061708643)
 results <- metropolis(start, target, num_sim = 1000, num_iter = 500)
 path <- results[[1]]
 liks <- results[[2]]
