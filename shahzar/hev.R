@@ -131,8 +131,8 @@ SEIR <- function(params, inc, inf, verbose = F) {
     
     # Each individual is infected from their household or community 
     # independently with probabilities risk_H and risk_C.
-    new_inf_H <- rbinom(nrow(data), 1, risk_H)
-    new_inf_C <- rbinom(nrow(data), 1, risk_C)
+    new_inf_H <- pmin(rbinom(N, 1, risk_H), 1)
+    new_inf_C <- pmin(rbinom(N, 1, risk_C), 1)
     
     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
     num_new_exposed <- sum(new_exposed, na.rm = T)

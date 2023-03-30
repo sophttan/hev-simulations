@@ -116,14 +116,14 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
       mutate(I_C = sum(I) - I_H)
     
     # Calculate household risk and community risk.
-    risk_H <- beta_H * data$S * I_data$I_H / pop
-    risk_C <- beta_C * data$S * I_data$I_C / pop
+    risk_H <- pmin(beta_H * data$S * I_data$I_H / pop, 1)
+    risk_C <- pmin(beta_C * data$S * I_data$I_C / pop, 1)
     
     # Each individual is infected from their household or 
     # community independently with probabilities risk_H
     # and risk_C.
-    new_inf_H <- rbinom(nrow(data), 1, risk_H)
-    new_inf_C <- rbinom(nrow(data), 1, risk_C)
+    new_inf_H <- rbinom(pop, 1, risk_H)
+    new_inf_C <- rbinom(pop, 1, risk_C)
     
     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
     num_new_exposed <- sum(new_exposed, na.rm = T)
@@ -186,6 +186,7 @@ for (i in 1:a) {
       results <- SEIR(beta_H, beta_C, inc, inf, verbose = F) 
       metrics(results)
     }
+      
     t_1 <- Sys.time()
     t_tot <- t_tot + (t_1 - t_0)
     cat(paste0(format(t_tot, nsmall = 2), 
@@ -194,8 +195,10 @@ for (i in 1:a) {
     vals <- matrix(vals, reps, byrow = T)
     idcs[i, j, ] <- vals[, 1]
     prps[i, j, ] <- vals[, 2]
+      
     cat(paste0(format(mean(vals[, 1]), nsmall = 3), '\t', 
                format(mean(vals[, 2]), nsmall = 3)))
+      
     write.table(idcs, file = 'idcs_4.txt', row.names = F, col.names = F)
     write.table(prps, file = 'prps_4.txt', row.names = F, col.names = F)
     cat('\n')

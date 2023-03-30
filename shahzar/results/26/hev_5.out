@@ -1,0 +1,460 @@
+
+R version 4.2.2 Patched (2022-11-10 r83330) -- "Innocent and Trusting"
+Copyright (C) 2022 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 275325 14.8     662942 35.5   468594 25.1
+Vcells 462880  3.6    8388608 64.0  1820274 13.9
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> #########################
+> #### SEIR Simulation ####
+> #########################
+> time <- 365 # Number of days.
+> inc <- 28 # Average incubation period length.
+> inf <- 7 # Average infectious period length.
+> N <- 1000 # Population size.
+> 
+> create_hh <- function() {
++   # Randomly sample household sizes such that total population is 1000 
++   # individuals.
++   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
++   
++   # Keep households such that total population is < 1000.
++   hh_size <- hh_size[which(cumsum(hh_size) < N)]
++   
++   leftover <- N - sum(hh_size)
++   if (leftover < 3) {
++     hh <- 1:length(hh_size)
++     sampled <- sample(hh[hh_size < 6], leftover)
++     hh_size[sampled] <- hh_size[sampled] + 1
++   } else {
++     hh_size <- c(hh_size, leftover)
++   }
++   return(hh_size)
++ }
+> 
+> SEIR <- function(params, inc, inf, verbose = F) {
++   hh_size <- create_hh()
++   
++   # Create frame for running the simulation.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # S: susceptibility status.
++   # E: exposed status.
++   # E_count: number of days since exposed.
++   # I: infectious status.
++   # I_count: number of days since infectious.
++   # R: recovered status.
++   # INC: incubation period.
++   # INF: infectious period.
++   data <- data.frame(ID = 1:N,
++                     SIZE = rep(hh_size, times = hh_size),
++                     HH = rep(1:length(hh_size), times = hh_size), 
++                     S = c(0, rep(1, N - 1)), 
++                     E = c(1, rep(0, N - 1)),
++                     E_count = c(1, rep(0, N - 1)), 
++                     I = 0,
++                     I_count = 0, 
++                     R = 0, 
++                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
++                     INF = 0)
++   
++   # Create frame for storing results.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # TYPE: the kind of infection: household (H), community (C), or both (B).
++   # TIME: when the individual became infectious.
++   # S_num: number of susceptible people in individual's household when their 
++   #        infectious period begins.
++   # I_num: number of people in household that this individual infected over 
++   #        their infectious period.
++   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
++   results$TYPE[1] <- '0'
++   
++   for(t in 1:time) {
++     if (verbose) {
++       if (t %% 10 == 0) {
++         cat(paste0(t, ' '))
++       }
++     }
++     
++     # Anyone who has been infectious for as many days as their infectious period
++     # is now recovered.
++     recovered <- (data$INF > 0) & (data$I_count == data$INF)
++     if(sum(recovered, na.rm = T) > 0) {
++       data$R[recovered] <- 1
++       data$I[recovered] <- 0
++       data$I_count[recovered] <- 0 
++     }
++     
++     # Anyone who has been incubating for as many days as their incubation period
++     # is now infectious.
++     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
++     num_new_inf <- sum(new_inf, na.rm = T)
++     if(num_new_inf > 0) {
++       # Change status to newly infectious and add infectious period.
++       data$I[new_inf] <- 1
++       random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
++       data$INF[new_inf] <- random_inf
++       
++       # Remove exposure status and exposure count.
++       data$E[new_inf] <- 0
++       data$E_count[new_inf] <- 0 
++       
++       # Record time at which infectious period starts.
++       results$TIME[new_inf] <- t
++       
++       # Save the number of susceptible people in each infectious individual's 
++       # household.
++       S_data <- data %>% group_by(HH) %>% 
++         mutate(S_tot = sum(S)) %>% 
++         select(HH, S_tot)
++       results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
++     }
++     
++     # I_H is the number of infections inside each household.
++     # I_C is the number of infections outside each household.
++     I_data <- data %>% group_by(HH) %>% 
++       mutate(I_H = sum(I)) %>% 
++       ungroup() %>% 
++       mutate(I_C = sum(I) - I_H)
++     
++     # Calculate household risk and community risk.
++     beta_H <- params[1]
++     beta_C <- params[2]
++     risk_H <- beta_H * data$S * I_data$I_H / N
++     risk_C <- beta_C * data$S * I_data$I_C / N
++     
++     # Each individual is infected from their household or community 
++     # independently with probabilities risk_H and risk_C.
++     new_inf_H <- rbinom(nrow(data), 1, risk_H)
++     new_inf_C <- rbinom(nrow(data), 1, risk_C)
++     
++     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
++     num_new_exposed <- sum(new_exposed, na.rm = T)
++     if (num_new_exposed > 0) {
++       # Change status to newly exposed and add incubation period.
++       data$E[new_exposed] <- 1
++       random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
++       data$INC[new_exposed] <- random_inc
++       
++       # Remove susceptible status.
++       data$S[new_exposed] <- 0
++       
++       # Label community infections with C and household infections with H.
++       results$TYPE[new_inf_C == 1] <- 'C'
++       results$TYPE[new_inf_H == 1] <- 'H'
++       
++       # Get number of new infections in each household.
++       I_data <- I_data %>%
++         select(ID, HH, I, I_H) %>%
++         mutate(new_I_H = new_inf_H) %>%
++         group_by(HH) %>%
++         # Find households with at least 1 currently infectious individual. If 
++         # exactly 1 infectious individual in household, assign all new H 
++         # exposures to that individual. If there are multiple infectious 
++         # individuals, assign all infections to the infectious individual with 
++         # the first ID.
++         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
++                                 sum(new_I_H), 0))
++       
++       results$I_num <- results$I_num + I_data$new_I_H
++         
++       # Label individuals with both a household and community infection with B.
++       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
++     }
++     
++     # Increment exposure and infectious counters.
++     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
++     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
++   }
++   return(results)
++ }
+> 
+> metrics <- function(results) {
++   # Incidence is the proportion of the population that became infected.
++   idc <- mean(!is.na(results$TIME))
++   
++   # If incidence is 0, the SAR is undefined.
++   sar <- NA
++   if (idc != 0) {
++     # The SAR is the average SAR for each individual that was infectious.
++     sar <- mean(results$I_num / results$S_num, na.rm = T)
++   }
++   return(c(idc, sar))
++ }
+> 
+> ##############################
+> #### Metropolis Algorithm ####
+> ##############################
+> score <- function(obs, target) {
++   # The score is the L² distance of the observed values from the target.
++   return(sum((obs - target)^2))
++ }
+> 
+> # The likelihood is calculated by first averaging the incidence and SAR over n
+> # simulations with the state parameters. The likelihood is the negative log
+> # score of the average incidence and SAR.
+> likelihood <- function(state, target, n = 300) {
++   # If either parameter is nonpositive, do not transition to that state.
++   if (any(state <= 0)) {
++     return(-Inf)
++   }
++   # Otherwise, find the average incidence and SAR and compute likelihood.
++   vals <- foreach (i = 1:n, .combine = c) %dopar% {
++     results <- SEIR(state, inc, inf)
++     metrics(results)
++   }
++   vals <- matrix(vals, n, byrow = T)
++   avg_vals <- colMeans(vals)
++   return(-log(score(avg_vals, target)))
++ }
+> 
+> # Proposal function
+> q <- function(state, sds = c(0.1, 0.001)) {
++   # Sample from a multivariate normal distributions centered at the current 
++   # state. The SDs roughly correspond to the step-size of the chain for each 
++   # parameter.
++   return(rnorm(n = 2, mean = state, sd = sds))
++ }
+> 
+> # MCMC
+> metropolis <- function(start, target, num_sim, num_iter) {
++   path <- matrix(NA, num_iter + 1, 2)
++   liks <- rep(NA, num_iter + 1)
++   
++   # Initialize current state.
++   curr <- start
++   curr_lik <- likelihood(curr, target, num_sim)
++   
++   # Initialize best state.
++   best <- curr
++   best_lik <- curr_lik
++   for (i in 1:num_iter) {
++     # Save the current state and its likelihood.
++     path[i, ] <- curr
++     liks[i] <- curr_lik
++     
++     # Get a proposed state and calculate its likelihood.
++     prop <- q(curr)
++     prop_lik <- likelihood(prop, target, num_sim)
++     
++     # Compute the ratio of the scores of the two states and generate a uniform 
++     # bit.
++     r <- exp(prop_lik - curr_lik)
++     p <- runif(1)
++     
++     # Print the current progress.
++     message(paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 5), 
++                    ']\t', round(curr_lik, 3), '\t', 
++                    '\t[', round(prop[1], 3), '\t', round(prop[2], 5), ']\t',
++                    round(prop_lik, 3), '\t', round(r, 3), '\t', round(p, 3)))
++     
++     # Transition if the proposed state is better or if the coin flip succeeds.
++     if (p < r) { 
++       curr <- prop
++       curr_lik <- prop_lik
++       
++       # If the new likelihood is better than the best we've seen so far, replace 
++       # the best.
++       if (curr_lik > best_lik) {
++         best <- curr
++         best_lik <- curr_lik
++       }
++     }
++     
++     # Save the path, best state, and likelihoods so far.
++     write.table(path, file = '5/path.txt', row.names = F, col.names = F)
++     write.table(liks, file = '5/liks.txt', row.names = F, col.names = F)
++     write.table(best, file = '5/best.txt', row.names = F, col.names = F)
++   }
++   path[num_iter + 1, ] <- curr
++   liks[num_iter + 1] <- curr_lik
++   return(list(path, liks, best))
++ }
+> 
+> # Solve for optimal values via MCMC.
+> target <- c(0.05, 0.25)
+> start <- c(56.2348166792159, 0.0690656636591525)
+> results <- metropolis(start, target, num_sim = 1000, num_iter = 500)
+1	[56.235	0.06907]	9.962		[56.09	0.06596]	9.763	0.82	0.359
+2	[56.09	0.06596]	9.763		[56.124	0.0651]	9.327	0.646	0.333
+3	[56.124	0.0651]	9.327		[56.153	0.06465]	8.874	0.636	0.239
+4	[56.153	0.06465]	8.874		[56.215	0.06524]	9.562	1.989	0.639
+5	[56.215	0.06524]	9.562		[56.173	0.06594]	10.266	2.021	0.893
+6	[56.173	0.06594]	10.266		[56.044	0.0653]	9.546	0.487	0.961
+7	[56.173	0.06594]	10.266		[56.165	0.06578]	8.996	0.281	0.275
+8	[56.165	0.06578]	8.996		[55.952	0.06705]	11.801	16.527	0.203
+9	[55.952	0.06705]	11.801		[55.803	0.06486]	9.286	0.081	0.561
+10	[55.952	0.06705]	11.801		[55.934	0.06723]	10.549	0.286	0.376
+11	[55.952	0.06705]	11.801		[55.932	0.06718]	10.557	0.288	0.828
+12	[55.952	0.06705]	11.801		[56.055	0.06742]	9.564	0.107	0.377
+13	[55.952	0.06705]	11.801		[56.014	0.06537]	9.032	0.063	0.567
+14	[55.952	0.06705]	11.801		[56.011	0.06553]	9.686	0.121	0.843
+15	[55.952	0.06705]	11.801		[55.986	0.06716]	10.646	0.315	0.961
+16	[55.952	0.06705]	11.801		[56.099	0.06909]	8.261	0.029	0.613
+17	[55.952	0.06705]	11.801		[56.034	0.06566]	10.155	0.193	0.739
+18	[55.952	0.06705]	11.801		[55.933	0.06714]	11.322	0.619	0.937
+19	[55.952	0.06705]	11.801		[55.976	0.06615]	10.259	0.214	0.351
+20	[55.952	0.06705]	11.801		[55.928	0.06846]	17.009	182.689	0.558
+21	[55.928	0.06846]	17.009		[56.063	0.06909]	10.264	0.001	0.634
+22	[55.928	0.06846]	17.009		[56.004	0.06836]	12.123	0.008	0.296
+23	[55.928	0.06846]	17.009		[56.092	0.06869]	11.186	0.003	0.273
+24	[55.928	0.06846]	17.009		[55.866	0.06749]	12.073	0.007	0.879
+25	[55.928	0.06846]	17.009		[56.115	0.06755]	11.15	0.003	0.858
+26	[55.928	0.06846]	17.009		[55.88	0.06835]	11.713	0.005	0.419
+27	[55.928	0.06846]	17.009		[56.009	0.07015]	9.309	0	0.239
+28	[55.928	0.06846]	17.009		[55.849	0.06967]	10.506	0.001	0.102
+29	[55.928	0.06846]	17.009		[55.917	0.07092]	8.981	0	0.716
+30	[55.928	0.06846]	17.009		[56.011	0.07047]	11.442	0.004	0.412
+31	[55.928	0.06846]	17.009		[55.931	0.06711]	8.479	0	0.097
+32	[55.928	0.06846]	17.009		[55.922	0.06818]	12.744	0.014	0.948
+33	[55.928	0.06846]	17.009		[55.855	0.06805]	8.856	0	0.032
+34	[55.928	0.06846]	17.009		[55.941	0.06821]	12.445	0.01	0.89
+35	[55.928	0.06846]	17.009		[55.83	0.06772]	10.454	0.001	0.898
+36	[55.928	0.06846]	17.009		[55.731	0.06776]	9.723	0.001	0.454
+37	[55.928	0.06846]	17.009		[55.73	0.06692]	11.343	0.003	0.362
+38	[55.928	0.06846]	17.009		[55.866	0.06754]	10.202	0.001	0.23
+39	[55.928	0.06846]	17.009		[55.853	0.06639]	9.67	0.001	0.429
+40	[55.928	0.06846]	17.009		[55.941	0.06749]	11.499	0.004	0.024
+41	[55.928	0.06846]	17.009		[55.739	0.06862]	12.094	0.007	0.837
+42	[55.928	0.06846]	17.009		[55.91	0.06749]	9.322	0	0.914
+43	[55.928	0.06846]	17.009		[55.829	0.06864]	9.597	0.001	0.019
+44	[55.928	0.06846]	17.009		[55.824	0.06942]	14.89	0.12	0.8
+45	[55.928	0.06846]	17.009		[56.061	0.06843]	12.486	0.011	0.465
+46	[55.928	0.06846]	17.009		[56.016	0.06841]	12.664	0.013	0.714
+47	[55.928	0.06846]	17.009		[55.984	0.07]	10.202	0.001	0.753
+48	[55.928	0.06846]	17.009		[55.804	0.06857]	11.301	0.003	0.422
+49	[55.928	0.06846]	17.009		[56.024	0.06693]	10.161	0.001	0.471
+50	[55.928	0.06846]	17.009		[56.162	0.06854]	11.766	0.005	0.163
+51	[55.928	0.06846]	17.009		[55.995	0.06652]	12.116	0.007	0.662
+52	[55.928	0.06846]	17.009		[56.049	0.06837]	11.416	0.004	0.308
+53	[55.928	0.06846]	17.009		[56.107	0.06882]	10.003	0.001	0.795
+54	[55.928	0.06846]	17.009		[55.888	0.06972]	9.939	0.001	0.194
+55	[55.928	0.06846]	17.009		[55.884	0.06883]	10.294	0.001	0.131
+56	[55.928	0.06846]	17.009		[55.872	0.06803]	11.08	0.003	0.312
+57	[55.928	0.06846]	17.009		[55.869	0.06953]	11.575	0.004	0.388
+58	[55.928	0.06846]	17.009		[55.964	0.06956]	9.987	0.001	0.419
+59	[55.928	0.06846]	17.009		[56.053	0.06909]	10.17	0.001	0.396
+60	[55.928	0.06846]	17.009		[55.838	0.06965]	10.932	0.002	0.742
+61	[55.928	0.06846]	17.009		[55.881	0.06727]	10.358	0.001	0.816
+62	[55.928	0.06846]	17.009		[55.925	0.06813]	9.776	0.001	0.278
+63	[55.928	0.06846]	17.009		[55.918	0.0693]	10.549	0.002	0.173
+64	[55.928	0.06846]	17.009		[56.053	0.0684]	14.356	0.07	0.396
+65	[55.928	0.06846]	17.009		[55.911	0.06899]	11.594	0.004	0.571
+66	[55.928	0.06846]	17.009		[55.893	0.06934]	9.721	0.001	0.74
+67	[55.928	0.06846]	17.009		[56.037	0.06898]	12.59	0.012	0.074
+68	[55.928	0.06846]	17.009		[55.734	0.06958]	10.247	0.001	0.428
+69	[55.928	0.06846]	17.009		[55.95	0.06948]	10.801	0.002	0.96
+70	[55.928	0.06846]	17.009		[56.031	0.06938]	10.904	0.002	0.665
+71	[55.928	0.06846]	17.009		[55.923	0.06807]	9.889	0.001	0.506
+72	[55.928	0.06846]	17.009		[55.934	0.06814]	14.09	0.054	0.777
+73	[55.928	0.06846]	17.009		[55.97	0.06705]	10.244	0.001	0.761
+74	[55.928	0.06846]	17.009		[56.049	0.06794]	9.736	0.001	0.249
+75	[55.928	0.06846]	17.009		[56.031	0.06724]	10.01	0.001	0.871
+76	[55.928	0.06846]	17.009		[55.987	0.0678]	11.108	0.003	0.758
+77	[55.928	0.06846]	17.009		[56.004	0.06819]	9.95	0.001	0.609
+78	[55.928	0.06846]	17.009		[55.768	0.0683]	13.261	0.024	0.476
+79	[55.928	0.06846]	17.009		[55.845	0.06951]	10.787	0.002	0.801
+80	[55.928	0.06846]	17.009		[55.993	0.06904]	11.621	0.005	0.869
+81	[55.928	0.06846]	17.009		[55.856	0.06956]	12.649	0.013	0.953
+82	[55.928	0.06846]	17.009		[55.993	0.06753]	10.966	0.002	0.286
+83	[55.928	0.06846]	17.009		[55.965	0.06761]	13.267	0.024	0.368
+84	[55.928	0.06846]	17.009		[55.753	0.06868]	10.846	0.002	0.759
+85	[55.928	0.06846]	17.009		[55.963	0.06918]	11.969	0.006	0.489
+86	[55.928	0.06846]	17.009		[55.823	0.06718]	10.314	0.001	0.379
+87	[55.928	0.06846]	17.009		[56.006	0.06824]	9.086	0	0.049
+88	[55.928	0.06846]	17.009		[55.924	0.06885]	11.925	0.006	0.402
+89	[55.928	0.06846]	17.009		[55.909	0.06742]	10.661	0.002	0.603
+90	[55.928	0.06846]	17.009		[56.002	0.06707]	10.644	0.002	0.782
+91	[55.928	0.06846]	17.009		[55.86	0.06711]	10.731	0.002	0.151
+92	[55.928	0.06846]	17.009		[55.95	0.06896]	10.939	0.002	0.762
+93	[55.928	0.06846]	17.009		[55.968	0.06838]	11.034	0.003	0.518
+94	[55.928	0.06846]	17.009		[55.897	0.06847]	9.562	0.001	0.834
+95	[55.928	0.06846]	17.009		[56.011	0.06804]	10.322	0.001	0.089
+96	[55.928	0.06846]	17.009		[56.075	0.0672]	9.363	0	0.626
+97	[55.928	0.06846]	17.009		[55.807	0.06897]	10.34	0.001	0.061
+98	[55.928	0.06846]	17.009		[56.087	0.06955]	10.567	0.002	0.675
+99	[55.928	0.06846]	17.009		[55.974	0.06854]	9.89	0.001	0.725
+100	[55.928	0.06846]	17.009		[55.882	0.0687]	12.365	0.01	0.973
+101	[55.928	0.06846]	17.009		[55.907	0.06788]	12.456	0.011	0.864
+102	[55.928	0.06846]	17.009		[55.994	0.06949]	9.574	0.001	0.159
+103	[55.928	0.06846]	17.009		[55.848	0.06698]	11.467	0.004	0.674
+104	[55.928	0.06846]	17.009		[55.907	0.06804]	12.463	0.011	0.956
+105	[55.928	0.06846]	17.009		[55.833	0.06636]	10.409	0.001	0.322
+106	[55.928	0.06846]	17.009		[55.882	0.06882]	12.845	0.016	0.216
+107	[55.928	0.06846]	17.009		[56.076	0.06736]	11.864	0.006	0.479
+108	[55.928	0.06846]	17.009		[55.978	0.068]	9.172	0	0.222
+109	[55.928	0.06846]	17.009		[55.954	0.06859]	11.855	0.006	0.873
+110	[55.928	0.06846]	17.009		[56.028	0.06738]	12.277	0.009	0.114
+111	[55.928	0.06846]	17.009		[55.819	0.06656]	10.101	0.001	0.342
+112	[55.928	0.06846]	17.009		[55.894	0.06692]	11.054	0.003	0.071
+113	[55.928	0.06846]	17.009		[55.927	0.0684]	11.286	0.003	0.382
+114	[55.928	0.06846]	17.009		[55.781	0.06871]	14.256	0.064	0.129
+115	[55.928	0.06846]	17.009		[55.969	0.06763]	11.057	0.003	0.769
+116	[55.928	0.06846]	17.009		[56.073	0.06788]	9.048	0	0.503
+117	[55.928	0.06846]	17.009		[55.799	0.06836]	13.387	0.027	0.645
+118	[55.928	0.06846]	17.009		[55.92	0.0697]	10.397	0.001	0.967
+119	[55.928	0.06846]	17.009		[55.901	0.07028]	9.618	0.001	0.632
+120	[55.928	0.06846]	17.009		[55.769	0.06815]	11.106	0.003	0.373
+121	[55.928	0.06846]	17.009		[55.937	0.06714]	9.787	0.001	0.806
+122	[55.928	0.06846]	17.009		[55.706	0.0692]	10.12	0.001	0.088
+123	[55.928	0.06846]	17.009		[55.92	0.06901]	9.576	0.001	0.672
+124	[55.928	0.06846]	17.009		[55.904	0.06934]	9.602	0.001	0.517
+125	[55.928	0.06846]	17.009		[55.861	0.06801]	11.389	0.004	0.911
+126	[55.928	0.06846]	17.009		[55.867	0.06765]	10.985	0.002	0.452
+127	[55.928	0.06846]	17.009		[55.903	0.06862]	11.884	0.006	0.37
+128	[55.928	0.06846]	17.009		[56.046	0.06902]	12.89	0.016	0.567
+129	[55.928	0.06846]	17.009		[55.961	0.06798]	9.649	0.001	0.109
+130	[55.928	0.06846]	17.009		[56.054	0.06846]	9.257	0	0.282
+131	[55.928	0.06846]	17.009		[55.659	0.06844]	13.185	0.022	0.444
+132	[55.928	0.06846]	17.009		[55.996	0.06973]	10.476	0.001	0.782
+133	[55.928	0.06846]	17.009		[55.9	0.07178]	8.992	0	0.167
+134	[55.928	0.06846]	17.009		[55.918	0.06803]	10.911	0.002	0.25
+135	[55.928	0.06846]	17.009		[55.99	0.06864]	10.934	0.002	0.786
+136	[55.928	0.06846]	17.009		[55.966	0.06786]	9.414	0.001	0.716
+137	[55.928	0.06846]	17.009		[55.958	0.06578]	9.736	0.001	0.518
+138	[55.928	0.06846]	17.009		[55.985	0.06848]	10.081	0.001	0.918
+139	[55.928	0.06846]	17.009		[55.786	0.06991]	10.655	0.002	0.205
+140	[55.928	0.06846]	17.009		[55.941	0.06707]	11.07	0.003	0.006
+141	[55.928	0.06846]	17.009		[55.958	0.06805]	11.687	0.005	0.467
+142	[55.928	0.06846]	17.009		[55.988	0.06855]	10.88	0.002	0.785
