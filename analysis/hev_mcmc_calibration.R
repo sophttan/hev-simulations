@@ -82,7 +82,7 @@ SEIR <- function(params, inc, inf, verbose = F) {
         cat(paste0(t, ' '))
       }
     }
-    
+
     # Anyone who has been infectious for as many days as their infectious period
     # is now recovered.
     recovered <- (data$INF > 0) & (data$I_count == data$INF)
@@ -278,20 +278,20 @@ metropolis <- function(start, target, num_sim, num_iter) {
   return(list(path, liks, best))
 }
 
-args <- commandArgs(trailingOnly = F)
-inc <- args[1]/100
+args <- commandArgs(trailingOnly = T) %>% as.numeric()
+incidence <- args[1]/100
 sar <- args[2]/100
-target <- c(inc, sar)
+target <- c(incidence, sar)
 
-if(inc==0.05) {
+if(incidence==0.05) {
   start<-c(56, 0.07)
-}else if(inc==0.1){
+}else if(incidence==0.1){
   start<-c(60.3, 0.08)
-}else if(inc==0.3){
+}else if(incidence==0.3){
   start<-c(53.7, 0.12)
 }
 
-results <- metropolis(start, target, num_sim = 1, num_iter = 5)
+results <- metropolis(start, target, num_sim = 5, num_iter = 100)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]
