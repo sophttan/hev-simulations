@@ -7,7 +7,7 @@ library(doParallel)
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
 message(detectCores())
-num_cores <- 24
+num_cores <- detectCores()
 registerDoParallel(num_cores)
 
 #########################
@@ -195,48 +195,48 @@ metrics <- function(results) {
 ###################
 #### FIRST SET ####
 ###################
-#message('Set 1')
-#params <- c(56.2348166792159, 0.0690656636591525)
+message('Set 1')
+params <- c(55.9281356104072, 0.0684567246743088)
 
-#reps <- 10000
-#idcs <- rep(NA, reps)
-#sars <- rep(NA, reps)
-#vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-#  results <- SEIR(params, inc, inf, verbose = F) 
-#  metrics(results)
-#}
-#vals <- matrix(vals, reps, byrow = T)
-#idcs <- vals[, 1]
-#sars <- vals[, 2]
-#write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
-#write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
+reps <- 10000
+idcs <- rep(NA, reps)
+sars <- rep(NA, reps)
+vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+  results <- SEIR(params, inc, inf, verbose = F) 
+  metrics(results)
+}
+vals <- matrix(vals, reps, byrow = T)
+idcs <- vals[, 1]
+sars <- vals[, 2]
+write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
+write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 
 
 ####################
 #### SECOND SET ####
 ####################
-#message('Set 2')
-#params <- c(54.6267093106321, 0.087119522123414)
+message('Set 2')
+params <- c(55.0560239597619, 0.0849340061708643)
 
-#reps <- 10000
-#idcs <- rep(NA, reps)
-#sars <- rep(NA, reps)
-#vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-#  results <- SEIR(params, inc, inf, verbose = F) 
-#  metrics(results)
-#}
-#vals <- matrix(vals, reps, byrow = T)
-#idcs <- vals[, 1]
-#sars <- vals[, 2]
-#write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
-#write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
+reps <- 10000
+idcs <- rep(NA, reps)
+sars <- rep(NA, reps)
+vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+  results <- SEIR(params, inc, inf, verbose = F) 
+  metrics(results)
+}
+vals <- matrix(vals, reps, byrow = T)
+idcs <- vals[, 1]
+sars <- vals[, 2]
+write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
+write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
 
 
 ###################
 #### THIRD SET ####
 ###################
 message('Set 3')
-params <- c(51.2386100875685, 0.122167209713071)
+params <- c(51.2968296821955, 0.122789411706526)
 
 reps <- 10000
 idcs <- rep(NA, reps)

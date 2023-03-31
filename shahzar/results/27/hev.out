@@ -40,10 +40,7 @@ Loading required package: iterators
 Loading required package: parallel
 > 
 > # Set up the number of cores used for parallelization.
-> # Use detectCores() to find out how many cores are available.
-> message(detectCores())
-32
-> num_cores <- detectCores()
+> num_cores <- 24
 > registerDoParallel(num_cores)
 > 
 > #########################
@@ -164,13 +161,13 @@ Loading required package: parallel
 +     # Calculate household risk and community risk.
 +     beta_H <- params[1]
 +     beta_C <- params[2]
-+     risk_H <- beta_H * data$S * I_data$I_H / N
-+     risk_C <- beta_C * data$S * I_data$I_C / N
++     risk_H <- pmin(beta_H * data$S * I_data$I_H / N, 1)
++     risk_C <- pmin(beta_C * data$S * I_data$I_C / N, 1)
 +     
 +     # Each individual is infected from their household or community 
 +     # independently with probabilities risk_H and risk_C.
-+     new_inf_H <- rbinom(nrow(data), 1, risk_H)
-+     new_inf_C <- rbinom(nrow(data), 1, risk_C)
++     new_inf_H <- rbinom(N, 1, risk_H)
++     new_inf_C <- rbinom(N, 1, risk_C)
 +     
 +     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
 +     num_new_exposed <- sum(new_exposed, na.rm = T)
@@ -213,7 +210,6 @@ Loading required package: parallel
 +   return(results)
 + }
 > 
-> 
 > metrics <- function(results) {
 +   # Incidence is the proportion of the population that became infected.
 +   idc <- mean(!is.na(results$TIME))
@@ -227,69 +223,47 @@ Loading required package: parallel
 +   return(c(idc, sar))
 + }
 > 
+> beta_Hs <- seq(48, 62, 0.2)
+> beta_Cs <- seq(0.06, 0.14, 0.004)
 > 
-> ###################
-> #### FIRST SET ####
-> ###################
-> message('Set 1')
-Set 1
-> params <- c(55.9281356104072, 0.0684567246743088)
+> a <- length(beta_Hs)
+> b <- length(beta_Cs)
 > 
-> reps <- 10000
-> idcs <- rep(NA, reps)
-> sars <- rep(NA, reps)
-> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-+   results <- SEIR(params, inc, inf, verbose = F) 
-+   metrics(results)
+> reps <- 125
+> idcs <- array(rep(0, a * b * reps), dim = c(a, b, reps))
+> sars <- array(rep(0, a * b * reps), dim = c(a, b, reps))
+> for (i in 1:a) {
++   for (j in 1:b) {
++     beta_H <- beta_Hs[i]
++     beta_C <- beta_Cs[j]
++     params <- c(beta_H, beta_C)
++     
++     cat(paste0(beta_H, '/62\t', 
++                format(beta_C, nsmall = 2), '/0.14\t'))
++       
++     t_0 <- Sys.time()
++     vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
++       results <- SEIR(params, inc, inf) 
++       metrics(results)
++     }
++       
++     t_1 <- Sys.time()
++     t_tot <- t_tot + (t_1 - t_0)
++     cat(paste0(format(t_tot, nsmall = 2), 
++                '\t(', format(t_1 - t_0, nsmall = 2), ')\t'))
++     
++     vals <- matrix(vals, reps, byrow = T)
++     idcs[i, j, ] <- vals[, 1]
++     sars[i, j, ] <- vals[, 2]
++       
++     cat(paste0(format(mean(vals[, 1]), nsmall = 3), '\t', 
++                format(mean(vals[, 2]), nsmall = 3)))
++       
++     write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
++     write.table(sars, file = 'sars.txt', row.names = F, col.names = F)
++     cat('\n')
++   }
++   message('\n')
 + }
-> vals <- matrix(vals, reps, byrow = T)
-> idcs <- vals[, 1]
-> sars <- vals[, 2]
-> write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
-> write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
-> 
-> 
-> ####################
-> #### SECOND SET ####
-> ####################
-> message('Set 2')
-Set 2
-> params <- c(55.0560239597619, 0.0849340061708643)
-> 
-> reps <- 10000
-> idcs <- rep(NA, reps)
-> sars <- rep(NA, reps)
-> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-+   results <- SEIR(params, inc, inf, verbose = F) 
-+   metrics(results)
-+ }
-> vals <- matrix(vals, reps, byrow = T)
-> idcs <- vals[, 1]
-> sars <- vals[, 2]
-> write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
-> write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
-> 
-> 
-> ###################
-> #### THIRD SET ####
-> ###################
-> message('Set 3')
-Set 3
-> params <- c(51.2968296821955, 0.122789411706526)
-> 
-> reps <- 10000
-> idcs <- rep(NA, reps)
-> sars <- rep(NA, reps)
-> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-+   results <- SEIR(params, inc, inf, verbose = F) 
-+   metrics(results)
-+ }
-> vals <- matrix(vals, reps, byrow = T)
-> idcs <- vals[, 1]
-> sars <- vals[, 2]
-> write.table(idcs, file = 'idcs_3.txt', row.names = F, col.names = F)
-> write.table(sars, file = 'sars_3.txt', row.names = F, col.names = F)
-> 
-> proc.time()
-      user     system    elapsed 
-375298.100   5849.277  12608.609 
+48/62	0.06/0.14	Error in t_tot : object 't_tot' not found
+Execution halted
