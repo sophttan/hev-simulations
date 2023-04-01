@@ -5,16 +5,15 @@ library(foreach)
 library(doParallel)
 
 # Set up the number of cores used for parallelization.
+# Use detectCores() to find out how many cores are available.
+message(detectCores())
 num_cores <- 24
 registerDoParallel(num_cores)
 
-#########################
-#### SEIR Simulation ####
-#########################
 time <- 365 # Number of days.
 inc <- 28 # Average incubation period length.
 inf <- 7 # Average infectious period length.
-N <- 1000 # Population size.
+pop <- 1000 # Population size.
 
 create_hh <- function() {
   # Randomly sample household sizes such that total population is 1000 
@@ -22,9 +21,9 @@ create_hh <- function() {
   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
   
   # Keep households such that total population is < 1000.
-  hh_size <- hh_size[which(cumsum(hh_size) < N)]
+  hh_size <- hh_size[which(cumsum(hh_size) < pop)]
   
-  leftover <- N - sum(hh_size)
+  leftover <- pop - sum(hh_size)
   if (leftover < 3) {
     hh <- 1:length(hh_size)
     sampled <- sample(hh[hh_size < 6], leftover)
@@ -35,7 +34,7 @@ create_hh <- function() {
   return(hh_size)
 }
 
-SEIR <- function(params, inc, inf, verbose = F) {
+SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   hh_size <- create_hh()
   
   # Create frame for running the simulation.
@@ -50,16 +49,16 @@ SEIR <- function(params, inc, inf, verbose = F) {
   # R: recovered status.
   # INC: incubation period.
   # INF: infectious period.
-  data <- data.frame(ID = 1:N,
+  data <- data.frame(ID = 1:pop,
                     SIZE = rep(hh_size, times = hh_size),
                     HH = rep(1:length(hh_size), times = hh_size), 
-                    S = c(0, rep(1, N - 1)), 
-                    E = c(1, rep(0, N - 1)),
-                    E_count = c(1, rep(0, N - 1)), 
+                    S = c(0, rep(1, pop - 1)), 
+                    E = c(1, rep(0, pop - 1)),
+                    E_count = c(1, rep(0, pop - 1)), 
                     I = 0,
                     I_count = 0, 
                     R = 0, 
-                    INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
+                    INC = c(round(rnorm(1, inc, 2)), rep(0, pop - 1)),
                     INF = 0)
   
   # Create frame for storing results.
@@ -78,12 +77,12 @@ SEIR <- function(params, inc, inf, verbose = F) {
   for(t in 1:time) {
     if (verbose) {
       if (t %% 10 == 0) {
-        cat(paste0(t, ' '))
+        message(t)
       }
     }
     
-    # Anyone who has been infectious for as many days as their infectious period
-    # is now recovered.
+    # Anyone who has been infectious for as many days as their infectious
+    # period is now recovered.
     recovered <- (data$INF > 0) & (data$I_count == data$INF)
     if(sum(recovered, na.rm = T) > 0) {
       data$R[recovered] <- 1
@@ -91,8 +90,8 @@ SEIR <- function(params, inc, inf, verbose = F) {
       data$I_count[recovered] <- 0 
     }
     
-    # Anyone who has been incubating for as many days as their incubation period
-    # is now infectious.
+    # Anyone who has been incubating for as many days as their incubation
+    # period is now infectious.
     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
     num_new_inf <- sum(new_inf, na.rm = T)
     if(num_new_inf > 0) {
@@ -107,13 +106,6 @@ SEIR <- function(params, inc, inf, verbose = F) {
       
       # Record time at which infectious period starts.
       results$TIME[new_inf] <- t
-      
-      # Save the number of susceptible people in each infectious individual's 
-      # household.
-      S_data <- data %>% group_by(HH) %>% 
-        mutate(S_tot = sum(S)) %>% 
-        select(HH, S_tot)
-      results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
     }
     
     # I_H is the number of infections inside each household.
@@ -124,15 +116,14 @@ SEIR <- function(params, inc, inf, verbose = F) {
       mutate(I_C = sum(I) - I_H)
     
     # Calculate household risk and community risk.
-    beta_H <- params[1]
-    beta_C <- params[2]
-    risk_H <- pmin(beta_H * data$S * I_data$I_H / N, 1)
-    risk_C <- pmin(beta_C * data$S * I_data$I_C / N, 1)
+    risk_H <- pmin(beta_H * data$S * I_data$I_H / pop, 1)
+    risk_C <- pmin(beta_C * data$S * I_data$I_C / pop, 1)
     
-    # Each individual is infected from their household or community 
-    # independently with probabilities risk_H and risk_C.
-    new_inf_H <- rbinom(N, 1, risk_H)
-    new_inf_C <- rbinom(N, 1, risk_C)
+    # Each individual is infected from their household or 
+    # community independently with probabilities risk_H
+    # and risk_C.
+    new_inf_H <- rbinom(pop, 1, risk_H)
+    new_inf_C <- rbinom(pop, 1, risk_C)
     
     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
     num_new_exposed <- sum(new_exposed, na.rm = T)
@@ -145,26 +136,9 @@ SEIR <- function(params, inc, inf, verbose = F) {
       # Remove susceptible status.
       data$S[new_exposed] <- 0
       
-      # Label community infections with C and household infections with H.
+      # Label infections.
       results$TYPE[new_inf_C == 1] <- 'C'
       results$TYPE[new_inf_H == 1] <- 'H'
-      
-      # Get number of new infections in each household.
-      I_data <- I_data %>%
-        select(ID, HH, I, I_H) %>%
-        mutate(new_I_H = new_inf_H) %>%
-        group_by(HH) %>%
-        # Find households with at least 1 currently infectious individual. If 
-        # exactly 1 infectious individual in household, assign all new H 
-        # exposures to that individual. If there are multiple infectious 
-        # individuals, assign all infections to the infectious individual with 
-        # the first ID.
-        mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
-                                sum(new_I_H), 0))
-      
-      results$I_num <- results$I_num + I_data$new_I_H
-        
-      # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
     }
     
@@ -179,55 +153,54 @@ metrics <- function(results) {
   # Incidence is the proportion of the population that became infected.
   idc <- mean(!is.na(results$TIME))
   
-  # If incidence is 0, the SAR is undefined.
-  sar <- NA
+  # If incidence is 0, the proportion of household infections is undefined.
+  prp <- NA
   if (idc != 0) {
-    # The SAR is the average SAR for each individual that was infectious.
-    sar <- mean(results$I_num / results$S_num, na.rm = T)
+    # The proportion of household infections is the proportion of infections that
+    # were from the household.
+    prp <- mean(results[!is.na(results$TIME), ]$TYPE == 'H')
   }
-  return(c(idc, sar))
+  return(c(idc, prp))
 }
 
-beta_Hs <- seq(48, 62, 0.2)
-beta_Cs <- seq(0.06, 0.14, 0.004)
+beta_Hs <- seq(301, 370, 1)
+beta_Cs <- seq(0, 0.2, 0.01)
 
 a <- length(beta_Hs)
 b <- length(beta_Cs)
 
-reps <- 125
-idcs <- array(rep(0, a * b * reps), dim = c(a, b, reps))
-sars <- array(rep(0, a * b * reps), dim = c(a, b, reps))
+reps <- 100
+idcs <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+prps <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
 t_tot <- 0
 for (i in 1:a) {
   for (j in 1:b) {
     beta_H <- beta_Hs[i]
     beta_C <- beta_Cs[j]
-    params <- c(beta_H, beta_C)
     
-    cat(paste0(beta_H, '/62\t', 
-               format(beta_C, nsmall = 2), '/0.14\t'))
+    cat(paste0(beta_H, '/300\t', 
+               format(beta_C, nsmall = 2), '/0.20\t'))
       
     t_0 <- Sys.time()
     vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
-      results <- SEIR(params, inc, inf) 
+      results <- SEIR(beta_H, beta_C, inc, inf, verbose = F) 
       metrics(results)
     }
+      
     t_1 <- Sys.time()
     t_tot <- t_tot + (t_1 - t_0)
-      
     cat(paste0(format(t_tot, nsmall = 2), 
                '\t(', format(t_1 - t_0, nsmall = 2), ')\t'))
     
     vals <- matrix(vals, reps, byrow = T)
     idcs[i, j, ] <- vals[, 1]
-    sars[i, j, ] <- vals[, 2]
+    prps[i, j, ] <- vals[, 2]
       
     cat(paste0(format(mean(vals[, 1]), nsmall = 3), '\t', 
                format(mean(vals[, 2]), nsmall = 3)))
       
-    write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
-    write.table(sars, file = 'sars.txt', row.names = F, col.names = F)
-      
+    write.table(idcs, file = 'idcs_5.txt', row.names = F, col.names = F)
+    write.table(prps, file = 'prps_5.txt', row.names = F, col.names = F)
     cat('\n')
   }
   message('\n')
