@@ -216,7 +216,7 @@ write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 #### SECOND SET ####
 ####################
 message('Set 2')
-params <- c(55.0560239597619, 0.0849340061708643)
+params <- c(54.8059305155253, 0.0857069414737171)
 
 reps <- 10000
 idcs <- rep(NA, reps)
@@ -236,7 +236,7 @@ write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
 #### THIRD SET ####
 ###################
 message('Set 3')
-params <- c(51.2968296821955, 0.122789411706526)
+params <- c(52.7367735229351, 0.121308277642932)
 
 reps <- 10000
 idcs <- rep(NA, reps)

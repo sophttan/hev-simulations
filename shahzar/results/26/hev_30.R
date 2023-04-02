@@ -215,7 +215,7 @@ likelihood <- function(state, target, n = 300) {
 }
 
 # Proposal function
-q <- function(state, sds = c(0.1, 0.001)) {
+q <- function(state, sds = c(0.05, 0.0005)) {
   # Sample from a multivariate normal distributions centered at the current 
   # state. The SDs roughly correspond to the step-size of the chain for each 
   # parameter.

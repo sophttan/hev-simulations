@@ -42,7 +42,7 @@ Loading required package: parallel
 > # Set up the number of cores used for parallelization.
 > # Use detectCores() to find out how many cores are available.
 > message(detectCores())
-32
+24
 > num_cores <- detectCores()
 > registerDoParallel(num_cores)
 > 
@@ -254,7 +254,7 @@ Set 1
 > ####################
 > message('Set 2')
 Set 2
-> params <- c(55.0560239597619, 0.0849340061708643)
+> params <- c(54.8059305155253, 0.0857069414737171)
 > 
 > reps <- 10000
 > idcs <- rep(NA, reps)
@@ -275,7 +275,7 @@ Set 2
 > ###################
 > message('Set 3')
 Set 3
-> params <- c(51.2968296821955, 0.122789411706526)
+> params <- c(52.7367735229351, 0.121308277642932)
 > 
 > reps <- 10000
 > idcs <- rep(NA, reps)
@@ -292,4 +292,4 @@ Set 3
 > 
 > proc.time()
       user     system    elapsed 
-375298.100   5849.277  12608.609 
+246490.014   2609.611  10992.490 
