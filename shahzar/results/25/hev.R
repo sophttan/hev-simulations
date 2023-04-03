@@ -195,48 +195,48 @@ metrics <- function(results) {
 ###################
 #### FIRST SET ####
 ###################
-message('Set 1')
-params <- c(55.9281356104072, 0.0684567246743088)
+#message('Set 1')
+#params <- c(55.9281356104072, 0.0684567246743088)
 
-reps <- 10000
-idcs <- rep(NA, reps)
-sars <- rep(NA, reps)
-vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-  results <- SEIR(params, inc, inf, verbose = F) 
-  metrics(results)
-}
-vals <- matrix(vals, reps, byrow = T)
-idcs <- vals[, 1]
-sars <- vals[, 2]
-write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
-write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
+#reps <- 10000
+#idcs <- rep(NA, reps)
+#sars <- rep(NA, reps)
+#vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+#  results <- SEIR(params, inc, inf, verbose = F) 
+#  metrics(results)
+#}
+#vals <- matrix(vals, reps, byrow = T)
+#idcs <- vals[, 1]
+#sars <- vals[, 2]
+#write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
+#write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 
 
 ####################
 #### SECOND SET ####
 ####################
-message('Set 2')
-params <- c(54.8059305155253, 0.0857069414737171)
+#message('Set 2')
+#params <- c(54.8059305155253, 0.0857069414737171)
 
-reps <- 10000
-idcs <- rep(NA, reps)
-sars <- rep(NA, reps)
-vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-  results <- SEIR(params, inc, inf, verbose = F) 
-  metrics(results)
-}
-vals <- matrix(vals, reps, byrow = T)
-idcs <- vals[, 1]
-sars <- vals[, 2]
-write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
-write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
+#reps <- 10000
+#idcs <- rep(NA, reps)
+#sars <- rep(NA, reps)
+#vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+#  results <- SEIR(params, inc, inf, verbose = F) 
+#  metrics(results)
+#}
+#vals <- matrix(vals, reps, byrow = T)
+#idcs <- vals[, 1]
+#sars <- vals[, 2]
+#write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
+#write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
 
 
 ###################
 #### THIRD SET ####
 ###################
 message('Set 3')
-params <- c(52.7367735229351, 0.121308277642932)
+params <- c(52.6740892462374, 0.121665484115338)
 
 reps <- 10000
 idcs <- rep(NA, reps)

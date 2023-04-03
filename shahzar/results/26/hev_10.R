@@ -215,7 +215,7 @@ likelihood <- function(state, target, n = 300) {
 }
 
 # Proposal function
-q <- function(state, sds = c(0.1, 0.001)) {
+q <- function(state, sds = c(0.05, 0.0005)) {
   # Sample from a multivariate normal distributions centered at the current 
   # state. The SDs roughly correspond to the step-size of the chain for each 
   # parameter.
@@ -279,7 +279,7 @@ metropolis <- function(start, target, num_sim, num_iter) {
 
 # Solve for optimal values via MCMC.
 target <- c(0.1, 0.25)
-start <- c(55.0560239597619, 0.0849340061708643)
+start <- c(54.8059305155253, 0.0857069414737171)
 results <- metropolis(start, target, num_sim = 1000, num_iter = 500)
 path <- results[[1]]
 liks <- results[[2]]

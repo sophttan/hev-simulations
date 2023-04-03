@@ -248,7 +248,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
     cat(i, '\t[', 
         format(curr[1], nsmall = 2), '\t', 
         format(curr[2], nsmall = 4), ']\t', 
-        format(curr_lik, nsmall = 3), '\t')
+        format(curr_lik, nsmall = 3), '\t', sep = '')
     
     # Get a proposed state and calculate its likelihood.
     prop <- q(curr)
@@ -257,7 +257,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
     cat('[', 
         format(prop[1], nsmall = 2), '\t', 
         format(prop[2], nsmall = 4), ']\t',
-        format(prop_lik, nsmall = 3), '\t')
+        format(prop_lik, nsmall = 3), '\t', sep = '')
       
     # Compute the ratio of the scores of the two states and generate a uniform 
     # bit.
@@ -265,7 +265,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
     p <- runif(1)
     
     # Print the current progress.
-    cat(format(r, nsmall = 3), '\t', format(p, nsmall = 3), '\n')
+    cat(format(r, nsmall = 3), '\t', format(p, nsmall = 3), '\n', sep = '')
     
     # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
