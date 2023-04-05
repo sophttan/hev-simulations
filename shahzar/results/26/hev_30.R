@@ -234,7 +234,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
   path <- matrix(NA, num_iter + 1, 2)
   liks <- rep(NA, num_iter + 1)
   
-  cat('START: ', '\t')
+  cat('START:', '\t', sep = '')
   
   # Initialize current state.
   curr <- start
@@ -301,7 +301,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
 # Solve for optimal values via MCMC.
 target <- c(0.30, 0.25)
 start <- c(52.6740892462374, 0.121665484115338)
-results <- metropolis(start, target, num_sim = 5000, num_iter = 200)
+results <- metropolis(start, target, num_sim = 2000, num_iter = 200)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]

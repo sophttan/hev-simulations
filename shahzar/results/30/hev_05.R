@@ -188,123 +188,39 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
-##############################
-#### Metropolis Algorithm ####
-##############################
-score <- function(fit, tgt) {
-  # The score is the L² distance of the observed values from the target.
-  return(sum((fit - tgt)^2))
-}
+beta_Hs <- seq(55.878, 55.978, 0.005)
+beta_Cs <- seq(0.0679, 0.0689, 0.0001)
 
-# The likelihood is calculated by first averaging the incidence and SAR over n
-# simulations with the state parameters. The likelihood is the negative log
-# score of the average incidence and SAR.
-likelihood <- function(state, tgt, n = 300, verbose = T) {
-  # If either parameter is nonpositive, do not transition to that state.
-  if (any(state <= 0)) {
-    return(-Inf)
-  }
-  # Otherwise, find the average incidence and SAR and compute likelihood.
-  vals <- foreach (i = 1:n, .combine = c) %dopar% {
-    results <- SEIR(state, inc, inf)
-    metrics(results)
-  }
-  vals <- matrix(vals, n, byrow = T)
-  fit <- colMeans(vals)
-  
-  if (verbose) {
-    cat('(', 
-        format(fit[1], digits = 4, nsmall = 4), ' ',
-        format(fit[2], digits = 4, nsmall = 4), ')\t', sep = '')
-  }
-      
-  return(-log(score(fit, tgt)))
-}
+a <- length(beta_Hs)
+b <- length(beta_Cs)
 
-# Proposal function
-q <- function(state, sds = c(0.05, 0.0005)) {
-  # Sample from a multivariate normal distributions centered at the current 
-  # state. The SDs roughly correspond to the step-size of the chain for each 
-  # parameter.
-  return(rnorm(n = 2, mean = state, sd = sds))
-}
-
-# MCMC
-metropolis <- function(start, tgt, num_sim, num_iter) {
-  path <- matrix(NA, num_iter + 1, 2)
-  liks <- rep(NA, num_iter + 1)
-  
-  cat('START:', '\t', sep = '')
-  
-  # Initialize current state.
-  curr <- start
-  curr_lik <- likelihood(curr, tgt, num_sim)
-  
-  cat('\n')
-  
-  # Initialize best state.
-  best <- curr
-  best_lik <- curr_lik
-  for (i in 1:num_iter) {
-    # Save the current state and its likelihood.
-    path[i, ] <- curr
-    liks[i] <- curr_lik
+reps <- 1000
+idcs <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+sars <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+t_tot <- 0
+for (i in 1:a) {
+  for (j in 1:b) {
+    beta_H <- beta_Hs[i]
+    beta_C <- beta_Cs[j]
+    params <- c(beta_H, beta_C)  
       
-    cat(i, '\t[', 
-        format(curr[1], digits = 5, nsmall = 3), ' ', 
-        format(curr[2], digits = 3, nsmall = 4), ']\t', 
-        format(curr_lik, digits = 3, nsmall = 3), '\t', sep = '')
-    
-    # Get a proposed state and calculate its likelihood.
-    prop <- q(curr)
-    
-    cat('[', 
-        format(prop[1], digits = 5, nsmall = 3), ' ', 
-        format(prop[2], digits = 3, nsmall = 4), '] ', sep = '')
-    
-    prop_lik <- likelihood(prop, tgt, num_sim)
-    
-    cat(format(prop_lik, digits = 3, nsmall = 3), '\t', sep = '')
-      
-    # Compute the ratio of the scores of the two states and generate a uniform 
-    # bit.
-    r <- exp(prop_lik - curr_lik)
-    p <- runif(1)
-    
-    # Print the current progress.
-    cat(format(r, digits = 3, nsmall = 3), '\t', 
-        format(p, digits = 3, nsmall = 3), '\n', sep = '')
-    
-    # Transition if the proposed state is better or if the coin flip succeeds.
-    if (p < r) { 
-      curr <- prop
-      curr_lik <- prop_lik
-      
-      # If the new likelihood is better than the best we've seen so far, replace 
-      # the best.
-      if (curr_lik > best_lik) {
-        best <- curr
-        best_lik <- curr_lik
-      }
+    t_0 <- Sys.time()
+    vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
+      results <- SEIR(params, inc, inf, verbose = F) 
+      metrics(results)
     }
-    
-    # Save the path, best state, and likelihoods so far.
-    write.table(path, file = '5/path.txt', row.names = F, col.names = F)
-    write.table(liks, file = '5/liks.txt', row.names = F, col.names = F)
-    write.table(best, file = '5/best.txt', row.names = F, col.names = F)
+    t_1 <- Sys.time()
+    t_tot <- t_tot + (t_1 - t_0)
+    vals <- matrix(vals, reps, byrow = T)
+    idcs[i, j, ] <- vals[, 1]
+    sars[i, j, ] <- vals[, 2]
+    message(paste0(format(beta_H, digits = 5, nsmall = 3), '/55.978\t', 
+                   format(beta_C, digits = 5, nsmall = 6), '/0.0689\t',  
+                   format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
+                   format(mean(vals[, 1]), nsmall = 3), '\t', 
+                   format(mean(vals[, 2]), nsmall = 3)))
+    write.table(idcs, file = 'idcs_05.txt', row.names = F, col.names = F)
+    write.table(sars, file = 'sars_05.txt', row.names = F, col.names = F)
   }
-  path[num_iter + 1, ] <- curr
-  liks[num_iter + 1] <- curr_lik
-  return(list(path, liks, best))
+  message('\n')
 }
-
-# Solve for optimal values via MCMC.
-target <- c(0.05, 0.25)
-start <- c(55.9281356104072, 0.0684567246743088)
-results <- metropolis(start, target, num_sim = 2000, num_iter = 200)
-path <- results[[1]]
-liks <- results[[2]]
-best <- results[[3]]
-write.table(path, file = '5/path.txt', row.names = F, col.names = F)
-write.table(liks, file = '5/liks.txt', row.names = F, col.names = F)
-write.table(best, file = '5/best.txt', row.names = F, col.names = F)
