@@ -291,10 +291,10 @@ if(incidence==0.05) {
   start<-c(53.7, 0.12)
 }
 
-results <- metropolis(start, target, num_sim = 5, num_iter = 100)
+results <- metropolis(start, target, num_sim = 300, num_iter = 1000)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]
-write.table(path, file = paste0(getwd(), 'path_inc_', inc, '.txt'), row.names = F, col.names = F)
-write.table(liks, file = paste0(getwd(), 'liks_inc_', inc, '.txt'), row.names = F, col.names = F)
-write.table(best, file = paste0(getwd(), 'best_inc_', inc, '.txt'), row.names = F, col.names = F)
+write.table(path, file = paste0('path_inc_', incidence, '.txt'), row.names = F, col.names = F)
+write.table(liks, file = paste0('liks_inc_', incidence, '.txt'), row.names = F, col.names = F)
+write.table(best, file = paste0('best_inc_', incidence, '.txt'), row.names = F, col.names = F)

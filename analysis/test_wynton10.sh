@@ -7,20 +7,20 @@
 #$ -l mem_free=2G     # job requires up to 1 GiB of RAM per slot
 #$ -l scratch=4G      # job requires up to 2 GiB of local /scratch space
 #$ -l h_rt=100:00:00   # job requires up to 24 hours of runtime
-#$ -t 1-3           # array job with 10 tasks (remove first '#' to enable)
+##$ -t 1-3           # array job with 10 tasks (remove first '#' to enable)
 #$ -r y               # if job crashes, it should be restarted
+
 
 date
 hostname
 
+
 module load CBI
 module load r
 
-for inc in 5 10 30
-do for sar in 25
-do Rscript hev_mcmc_calibration.R $inc $sar
-done
-done
+
+Rscript hev_mcmc_calibration.R 10 25 
+
 
 ## End-of-job summary, if running as a job
 [[ -n "$JOB_ID" ]] && qstat -j "$JOB_ID"  # This is useful for debugging and usage purposes,
