@@ -1,5 +1,20 @@
-# Functions for running SEIR model of HEV transmission
-# Authors: Sophia Tan, Shahzar Rizvi, Nila Cebu
+rm(list = ls())
+gc()
+library(dplyr)
+library(foreach)
+library(doParallel)
+
+# Set up the number of cores used for parallelization.
+num_cores <- 24
+registerDoParallel(num_cores)
+
+#########################
+#### SEIR Simulation ####
+#########################
+time <- 365 # Number of days.
+inc <- 28 # Average incubation period length.
+inf <- 7 # Average infectious period length.
+N <- 1000 # Population size.
 
 create_hh <- function() {
   # Randomly sample household sizes such that total population is 1000 
@@ -20,7 +35,6 @@ create_hh <- function() {
   return(hh_size)
 }
 
-# simple person-person transmission
 SEIR <- function(params, inc, inf, verbose = F) {
   hh_size <- create_hh()
   
@@ -37,16 +51,16 @@ SEIR <- function(params, inc, inf, verbose = F) {
   # INC: incubation period.
   # INF: infectious period.
   data <- data.frame(ID = 1:N,
-                     SIZE = rep(hh_size, times = hh_size),
-                     HH = rep(1:length(hh_size), times = hh_size), 
-                     S = c(0, rep(1, N - 1)), 
-                     E = c(1, rep(0, N - 1)),
-                     E_count = c(1, rep(0, N - 1)), 
-                     I = 0,
-                     I_count = 0, 
-                     R = 0, 
-                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
-                     INF = 0)
+                    SIZE = rep(hh_size, times = hh_size),
+                    HH = rep(1:length(hh_size), times = hh_size), 
+                    S = c(0, rep(1, N - 1)), 
+                    E = c(1, rep(0, N - 1)),
+                    E_count = c(1, rep(0, N - 1)), 
+                    I = 0,
+                    I_count = 0, 
+                    R = 0, 
+                    INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
+                    INF = 0)
   
   # Create frame for storing results.
   # ID: ID of individual.
@@ -112,8 +126,8 @@ SEIR <- function(params, inc, inf, verbose = F) {
     # Calculate household risk and community risk.
     beta_H <- params[1]
     beta_C <- params[2]
-    risk_H <- pmin(beta_H * data$S * I_data$I_H / N, 1)
-    risk_C <- pmin(beta_C * data$S * I_data$I_C / N, 1)
+    risk_H <- beta_H * data$S * I_data$I_H / N
+    risk_C <- beta_C * data$S * I_data$I_C / N
     
     # Each individual is infected from their household or community 
     # independently with probabilities risk_H and risk_C.
@@ -149,7 +163,7 @@ SEIR <- function(params, inc, inf, verbose = F) {
                                 sum(new_I_H), 0))
       
       results$I_num <- results$I_num + I_data$new_I_H
-      
+        
       # Label individuals with both a household and community infection with B.
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
     }
@@ -160,14 +174,6 @@ SEIR <- function(params, inc, inf, verbose = F) {
   }
   return(results)
 }
-
-# simple environmental transmission
-
-
-# blended person-person and environmental transmission model
-# Before, fit the ratio of p_P:p_E and incidence
-# 25/75, 50/50, and 75/25
-# For each incidence, hit 25% SAR, 
 
 metrics <- function(results) {
   # Incidence is the proportion of the population that became infected.
@@ -180,4 +186,41 @@ metrics <- function(results) {
     sar <- mean(results$I_num / results$S_num, na.rm = T)
   }
   return(c(idc, sar))
+}
+
+beta_Hs <- seq(55.548, 55.573, 0.005)
+beta_Cs <- seq(0.1209, 0.1219, 0.0001)
+
+a <- length(beta_Hs)
+b <- length(beta_Cs)
+
+reps <- 1000
+idcs <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+sars <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+t_tot <- 0
+for (i in 1:a) {
+  for (j in 1:b) {
+    beta_H <- beta_Hs[i]
+    beta_C <- beta_Cs[j]
+    params <- c(beta_H, beta_C)
+      
+    t_0 <- Sys.time()
+    vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
+      results <- SEIR(params, inc, inf, verbose = F) 
+      metrics(results)
+    }
+    t_1 <- Sys.time()
+    t_tot <- t_tot + (t_1 - t_0)
+    vals <- matrix(vals, reps, byrow = T)
+    idcs[i, j, ] <- vals[, 1]
+    sars[i, j, ] <- vals[, 2]
+    message(paste0(format(beta_H, digits = 5, nsmall = 3), '/55.573\t', 
+                   format(beta_C, digits = 4, nsmall = 4), '/0.1219\t',  
+                   format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
+                   format(mean(vals[, 1]), nsmall = 3), '\t', 
+                   format(mean(vals[, 2]), nsmall = 3)))
+    write.table(idcs, file = 'idcs_30_2.txt', row.names = F, col.names = F)
+    write.table(sars, file = 'sars_30_2.txt', row.names = F, col.names = F)
+  }
+  message('\n')
 }
