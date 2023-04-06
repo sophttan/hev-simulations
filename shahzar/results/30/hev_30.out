@@ -1,0 +1,459 @@
+
+R version 4.2.2 Patched (2022-11-10 r83330) -- "Innocent and Trusting"
+Copyright (C) 2022 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 275507 14.8     663402 35.5   469283 25.1
+Vcells 463357  3.6    8388608 64.0  1822500 14.0
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> #########################
+> #### SEIR Simulation ####
+> #########################
+> time <- 365 # Number of days.
+> inc <- 28 # Average incubation period length.
+> inf <- 7 # Average infectious period length.
+> N <- 1000 # Population size.
+> 
+> create_hh <- function() {
++   # Randomly sample household sizes such that total population is 1000 
++   # individuals.
++   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
++   
++   # Keep households such that total population is < 1000.
++   hh_size <- hh_size[which(cumsum(hh_size) < N)]
++   
++   leftover <- N - sum(hh_size)
++   if (leftover < 3) {
++     hh <- 1:length(hh_size)
++     sampled <- sample(hh[hh_size < 6], leftover)
++     hh_size[sampled] <- hh_size[sampled] + 1
++   } else {
++     hh_size <- c(hh_size, leftover)
++   }
++   return(hh_size)
++ }
+> 
+> SEIR <- function(params, inc, inf, verbose = F) {
++   hh_size <- create_hh()
++   
++   # Create frame for running the simulation.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # S: susceptibility status.
++   # E: exposed status.
++   # E_count: number of days since exposed.
++   # I: infectious status.
++   # I_count: number of days since infectious.
++   # R: recovered status.
++   # INC: incubation period.
++   # INF: infectious period.
++   data <- data.frame(ID = 1:N,
++                     SIZE = rep(hh_size, times = hh_size),
++                     HH = rep(1:length(hh_size), times = hh_size), 
++                     S = c(0, rep(1, N - 1)), 
++                     E = c(1, rep(0, N - 1)),
++                     E_count = c(1, rep(0, N - 1)), 
++                     I = 0,
++                     I_count = 0, 
++                     R = 0, 
++                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
++                     INF = 0)
++   
++   # Create frame for storing results.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # TYPE: the kind of infection: household (H), community (C), or both (B).
++   # TIME: when the individual became infectious.
++   # S_num: number of susceptible people in individual's household when their 
++   #        infectious period begins.
++   # I_num: number of people in household that this individual infected over 
++   #        their infectious period.
++   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
++   results$TYPE[1] <- '0'
++   
++   for(t in 1:time) {
++     if (verbose) {
++       if (t %% 10 == 0) {
++         cat(paste0(t, ' '))
++       }
++     }
++     
++     # Anyone who has been infectious for as many days as their infectious period
++     # is now recovered.
++     recovered <- (data$INF > 0) & (data$I_count == data$INF)
++     if(sum(recovered, na.rm = T) > 0) {
++       data$R[recovered] <- 1
++       data$I[recovered] <- 0
++       data$I_count[recovered] <- 0 
++     }
++     
++     # Anyone who has been incubating for as many days as their incubation period
++     # is now infectious.
++     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
++     num_new_inf <- sum(new_inf, na.rm = T)
++     if(num_new_inf > 0) {
++       # Change status to newly infectious and add infectious period.
++       data$I[new_inf] <- 1
++       random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
++       data$INF[new_inf] <- random_inf
++       
++       # Remove exposure status and exposure count.
++       data$E[new_inf] <- 0
++       data$E_count[new_inf] <- 0 
++       
++       # Record time at which infectious period starts.
++       results$TIME[new_inf] <- t
++       
++       # Save the number of susceptible people in each infectious individual's 
++       # household.
++       S_data <- data %>% group_by(HH) %>% 
++         mutate(S_tot = sum(S)) %>% 
++         select(HH, S_tot)
++       results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
++     }
++     
++     # I_H is the number of infections inside each household.
++     # I_C is the number of infections outside each household.
++     I_data <- data %>% group_by(HH) %>% 
++       mutate(I_H = sum(I)) %>% 
++       ungroup() %>% 
++       mutate(I_C = sum(I) - I_H)
++     
++     # Calculate household risk and community risk.
++     beta_H <- params[1]
++     beta_C <- params[2]
++     risk_H <- beta_H * data$S * I_data$I_H / N
++     risk_C <- beta_C * data$S * I_data$I_C / N
++     
++     # Each individual is infected from their household or community 
++     # independently with probabilities risk_H and risk_C.
++     new_inf_H <- rbinom(nrow(data), 1, risk_H)
++     new_inf_C <- rbinom(nrow(data), 1, risk_C)
++     
++     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
++     num_new_exposed <- sum(new_exposed, na.rm = T)
++     if (num_new_exposed > 0) {
++       # Change status to newly exposed and add incubation period.
++       data$E[new_exposed] <- 1
++       random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
++       data$INC[new_exposed] <- random_inc
++       
++       # Remove susceptible status.
++       data$S[new_exposed] <- 0
++       
++       # Label community infections with C and household infections with H.
++       results$TYPE[new_inf_C == 1] <- 'C'
++       results$TYPE[new_inf_H == 1] <- 'H'
++       
++       # Get number of new infections in each household.
++       I_data <- I_data %>%
++         select(ID, HH, I, I_H) %>%
++         mutate(new_I_H = new_inf_H) %>%
++         group_by(HH) %>%
++         # Find households with at least 1 currently infectious individual. If 
++         # exactly 1 infectious individual in household, assign all new H 
++         # exposures to that individual. If there are multiple infectious 
++         # individuals, assign all infections to the infectious individual with 
++         # the first ID.
++         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
++                                 sum(new_I_H), 0))
++       
++       results$I_num <- results$I_num + I_data$new_I_H
++         
++       # Label individuals with both a household and community infection with B.
++       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
++     }
++     
++     # Increment exposure and infectious counters.
++     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
++     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
++   }
++   return(results)
++ }
+> 
+> metrics <- function(results) {
++   # Incidence is the proportion of the population that became infected.
++   idc <- mean(!is.na(results$TIME))
++   
++   # If incidence is 0, the SAR is undefined.
++   sar <- NA
++   if (idc != 0) {
++     # The SAR is the average SAR for each individual that was infectious.
++     sar <- mean(results$I_num / results$S_num, na.rm = T)
++   }
++   return(c(idc, sar))
++ }
+> 
+> beta_Hs <- seq(55.473, 55.573, 0.005)
+> beta_Cs <- seq(0.1209, 0.1219, 0.0001)
+> 
+> a <- length(beta_Hs)
+> b <- length(beta_Cs)
+> 
+> reps <- 1000
+> idcs <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+> sars <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+> t_tot <- 0
+> for (i in 1:a) {
++   for (j in 1:b) {
++     beta_H <- beta_Hs[i]
++     beta_C <- beta_Cs[j]
++     params <- c(beta_H, beta_C)
++       
++     t_0 <- Sys.time()
++     vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
++       results <- SEIR(params, inc, inf, verbose = F) 
++       metrics(results)
++     }
++     t_1 <- Sys.time()
++     t_tot <- t_tot + (t_1 - t_0)
++     vals <- matrix(vals, reps, byrow = T)
++     idcs[i, j, ] <- vals[, 1]
++     sars[i, j, ] <- vals[, 2]
++     message(paste0(format(beta_H, digits = 5, nsmall = 3), '/55.573\t', 
++                    format(beta_C, digits = 5, nsmall = 6), '/0.1219\t',  
++                    format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
++                    format(mean(vals[, 1]), nsmall = 3), '\t', 
++                    format(mean(vals[, 2]), nsmall = 3)))
++     write.table(idcs, file = 'idcs_30.txt', row.names = F, col.names = F)
++     write.table(sars, file = 'sars_30.txt', row.names = F, col.names = F)
++   }
++   message('\n')
++ }
+55.473/55.573	0.120900/0.1219	8.504523 mins	(8.504523 mins)	0.323314	0.2581869
+55.473/55.573	0.121000/0.1219	16.87402 mins	(8.369499 mins)	0.312281	0.2526219
+55.473/55.573	0.121100/0.1219	25.30513 mins	(8.431106 mins)	0.320541	0.2578795
+55.473/55.573	0.121200/0.1219	33.99314 mins	(8.688015 mins)	0.313416	0.2535124
+55.473/55.573	0.121300/0.1219	42.3656 mins	(8.372455 mins)	0.319075	0.261733
+55.473/55.573	0.121400/0.1219	50.72173 mins	(8.356128 mins)	0.305137	0.251341
+55.473/55.573	0.121500/0.1219	59.33757 mins	(8.615839 mins)	0.32808	0.2603155
+55.473/55.573	0.121600/0.1219	67.95789 mins	(8.620325 mins)	0.308845	0.2626432
+55.473/55.573	0.121700/0.1219	76.47811 mins	(8.52022 mins)	0.316579	0.2631072
+55.473/55.573	0.121800/0.1219	85.00857 mins	(8.530461 mins)	0.325973	0.2636735
+55.473/55.573	0.121900/0.1219	93.67987 mins	(8.671296 mins)	0.329316	0.2620765
+
+
+55.478/55.573	0.120900/0.1219	102.1467 mins	(8.466811 mins)	0.312756	0.2619091
+55.478/55.573	0.121000/0.1219	110.9563 mins	(8.809665 mins)	0.317452	0.2635849
+55.478/55.573	0.121100/0.1219	119.5742 mins	(8.617881 mins)	0.316677	0.2572763
+55.478/55.573	0.121200/0.1219	128.0944 mins	(8.520213 mins)	0.322065	0.2600318
+55.478/55.573	0.121300/0.1219	136.5274 mins	(8.433008 mins)	0.324881	0.2560239
+55.478/55.573	0.121400/0.1219	144.8299 mins	(8.302434 mins)	0.321489	0.2608891
+55.478/55.573	0.121500/0.1219	153.3605 mins	(8.53063 mins)	0.327781	0.2612136
+55.478/55.573	0.121600/0.1219	162.0103 mins	(8.649787 mins)	0.322275	0.2574097
+55.478/55.573	0.121700/0.1219	170.6042 mins	(8.5939 mins)	0.328575	0.2637088
+55.478/55.573	0.121800/0.1219	179.2208 mins	(8.61659 mins)	0.316456	0.2555179
+55.478/55.573	0.121900/0.1219	187.8286 mins	(8.607851 mins)	0.315365	0.2535086
+
+
+55.483/55.573	0.120900/0.1219	196.1909 mins	(8.362275 mins)	0.313437	0.257672
+55.483/55.573	0.121000/0.1219	204.8449 mins	(8.654029 mins)	0.313117	0.2606109
+55.483/55.573	0.121100/0.1219	213.5608 mins	(8.715858 mins)	0.314793	0.2606379
+55.483/55.573	0.121200/0.1219	222.09 mins	(8.529191 mins)	0.323604	0.2609252
+55.483/55.573	0.121300/0.1219	230.8359 mins	(8.745892 mins)	0.320549	0.2587097
+55.483/55.573	0.121400/0.1219	239.2968 mins	(8.460946 mins)	0.325826	0.259713
+55.483/55.573	0.121500/0.1219	247.802 mins	(8.505215 mins)	0.32188	0.2588979
+55.483/55.573	0.121600/0.1219	256.2633 mins	(8.461216 mins)	0.325413	0.2601153
+55.483/55.573	0.121700/0.1219	264.7261 mins	(8.462849 mins)	0.323647	0.2644842
+55.483/55.573	0.121800/0.1219	273.4335 mins	(8.707416 mins)	0.325823	0.2628478
+55.483/55.573	0.121900/0.1219	282.1017 mins	(8.668205 mins)	0.328184	0.2642426
+
+
+55.488/55.573	0.120900/0.1219	290.7787 mins	(8.676929 mins)	0.314244	0.2627886
+55.488/55.573	0.121000/0.1219	299.7364 mins	(8.957759 mins)	0.313315	0.2621797
+55.488/55.573	0.121100/0.1219	308.398 mins	(8.661562 mins)	0.319947	0.2617408
+55.488/55.573	0.121200/0.1219	316.9614 mins	(8.563384 mins)	0.310485	0.2564863
+55.488/55.573	0.121300/0.1219	325.4089 mins	(8.44756 mins)	0.30905	0.2578363
+55.488/55.573	0.121400/0.1219	334.0338 mins	(8.624841 mins)	0.322483	0.2581141
+55.488/55.573	0.121500/0.1219	342.6659 mins	(8.632099 mins)	0.327531	0.2602415
+55.488/55.573	0.121600/0.1219	351.2394 mins	(8.573556 mins)	0.330416	0.2658522
+55.488/55.573	0.121700/0.1219	359.6659 mins	(8.426436 mins)	0.320655	0.2620207
+55.488/55.573	0.121800/0.1219	368.4467 mins	(8.780868 mins)	0.345497	0.2696878
+55.488/55.573	0.121900/0.1219	377.0591 mins	(8.612402 mins)	0.324869	0.2577103
+
+
+55.493/55.573	0.120900/0.1219	385.3827 mins	(8.323536 mins)	0.311373	0.2621804
+55.493/55.573	0.121000/0.1219	393.8272 mins	(8.444523 mins)	0.304085	0.2560795
+55.493/55.573	0.121100/0.1219	402.3265 mins	(8.49932 mins)	0.317232	0.2592677
+55.493/55.573	0.121200/0.1219	410.5332 mins	(8.206699 mins)	0.294388	0.25109
+55.493/55.573	0.121300/0.1219	419.0924 mins	(8.559152 mins)	0.317367	0.2588017
+55.493/55.573	0.121400/0.1219	427.6059 mins	(8.513529 mins)	0.323433	0.2622841
+55.493/55.573	0.121500/0.1219	436.5587 mins	(8.952826 mins)	0.333513	0.2616014
+55.493/55.573	0.121600/0.1219	445.3997 mins	(8.840983 mins)	0.316019	0.2585872
+55.493/55.573	0.121700/0.1219	454.6066 mins	(9.206948 mins)	0.31888	0.2592328
+55.493/55.573	0.121800/0.1219	463.2914 mins	(8.684729 mins)	0.318079	0.2569607
+55.493/55.573	0.121900/0.1219	471.6778 mins	(8.386409 mins)	0.306345	0.2503495
+
+
+55.498/55.573	0.120900/0.1219	479.9731 mins	(8.295306 mins)	0.319761	0.2582146
+55.498/55.573	0.121000/0.1219	488.9592 mins	(8.986121 mins)	0.3181	0.252492
+55.498/55.573	0.121100/0.1219	497.4743 mins	(8.515093 mins)	0.3183	0.2598453
+55.498/55.573	0.121200/0.1219	506.0693 mins	(8.595026 mins)	0.313752	0.2575766
+55.498/55.573	0.121300/0.1219	514.9985 mins	(8.929188 mins)	0.324248	0.2651969
+55.498/55.573	0.121400/0.1219	523.7841 mins	(8.785609 mins)	0.333129	0.263775
+55.498/55.573	0.121500/0.1219	532.5256 mins	(8.741529 mins)	0.322938	0.2608863
+55.498/55.573	0.121600/0.1219	541.0403 mins	(8.514697 mins)	0.311	0.2601792
+55.498/55.573	0.121700/0.1219	549.6671 mins	(8.626778 mins)	0.323902	0.2591117
+55.498/55.573	0.121800/0.1219	557.9987 mins	(8.331572 mins)	0.309856	0.2566388
+55.498/55.573	0.121900/0.1219	566.4392 mins	(8.440499 mins)	0.320259	0.2659967
+
+
+55.503/55.573	0.120900/0.1219	574.8166 mins	(8.377377 mins)	0.316364	0.2605534
+55.503/55.573	0.121000/0.1219	583.6363 mins	(8.81971 mins)	0.318389	0.2653311
+55.503/55.573	0.121100/0.1219	592.139 mins	(8.502713 mins)	0.317793	0.2605314
+55.503/55.573	0.121200/0.1219	600.5925 mins	(8.453479 mins)	0.307723	0.2612321
+55.503/55.573	0.121300/0.1219	608.9694 mins	(8.376885 mins)	0.310815	0.2598274
+55.503/55.573	0.121400/0.1219	617.3882 mins	(8.418862 mins)	0.314767	0.2560528
+55.503/55.573	0.121500/0.1219	625.9361 mins	(8.547923 mins)	0.317761	0.2567286
+55.503/55.573	0.121600/0.1219	634.4564 mins	(8.520221 mins)	0.324298	0.2643488
+55.503/55.573	0.121700/0.1219	643.362 mins	(8.905668 mins)	0.325186	0.261902
+55.503/55.573	0.121800/0.1219	652.1614 mins	(8.799418 mins)	0.325476	0.2606839
+55.503/55.573	0.121900/0.1219	661.0371 mins	(8.875637 mins)	0.340197	0.2649368
+
+
+55.508/55.573	0.120900/0.1219	669.3801 mins	(8.343004 mins)	0.310941	0.2570696
+55.508/55.573	0.121000/0.1219	677.7724 mins	(8.392339 mins)	0.312109	0.2539842
+55.508/55.573	0.121100/0.1219	686.2663 mins	(8.493913 mins)	0.32049	0.261367
+55.508/55.573	0.121200/0.1219	694.4912 mins	(8.224842 mins)	0.31614	0.2607873
+55.508/55.573	0.121300/0.1219	702.9262 mins	(8.435058 mins)	0.323272	0.2609746
+55.508/55.573	0.121400/0.1219	711.5113 mins	(8.585025 mins)	0.322404	0.25876
+55.508/55.573	0.121500/0.1219	720.0826 mins	(8.571322 mins)	0.327667	0.2621105
+55.508/55.573	0.121600/0.1219	728.8118 mins	(8.729188 mins)	0.313774	0.2591599
+55.508/55.573	0.121700/0.1219	737.5134 mins	(8.7016 mins)	0.32861	0.260469
+55.508/55.573	0.121800/0.1219	745.6817 mins	(8.168363 mins)	0.31422	0.2644541
+55.508/55.573	0.121900/0.1219	754.2863 mins	(8.604542 mins)	0.327254	0.2585269
+
+
+55.513/55.573	0.120900/0.1219	763.0287 mins	(8.742402 mins)	0.330915	0.2649008
+55.513/55.573	0.121000/0.1219	771.3615 mins	(8.332829 mins)	0.3028	0.2542685
+55.513/55.573	0.121100/0.1219	779.7318 mins	(8.370303 mins)	0.319781	0.2611142
+55.513/55.573	0.121200/0.1219	788.0475 mins	(8.31569 mins)	0.319976	0.2586806
+55.513/55.573	0.121300/0.1219	796.4093 mins	(8.361819 mins)	0.312117	0.2605934
+55.513/55.573	0.121400/0.1219	804.9456 mins	(8.536244 mins)	0.308304	0.2570752
+55.513/55.573	0.121500/0.1219	813.4448 mins	(8.4992 mins)	0.306918	0.2561423
+55.513/55.573	0.121600/0.1219	822.2259 mins	(8.781166 mins)	0.33173	0.2676557
+55.513/55.573	0.121700/0.1219	830.658 mins	(8.432109 mins)	0.318626	0.2574914
+55.513/55.573	0.121800/0.1219	839.1359 mins	(8.477829 mins)	0.314437	0.2601007
+55.513/55.573	0.121900/0.1219	847.81 mins	(8.67416 mins)	0.322735	0.2561022
+
+
+55.518/55.573	0.120900/0.1219	856.2958 mins	(8.485726 mins)	0.311406	0.2612569
+55.518/55.573	0.121000/0.1219	864.726 mins	(8.430217 mins)	0.320788	0.2623579
+55.518/55.573	0.121100/0.1219	872.8952 mins	(8.169194 mins)	0.306645	0.2621399
+55.518/55.573	0.121200/0.1219	881.3371 mins	(8.44197 mins)	0.319751	0.2606217
+55.518/55.573	0.121300/0.1219	889.7251 mins	(8.387961 mins)	0.326625	0.2625556
+55.518/55.573	0.121400/0.1219	897.9931 mins	(8.268 mins)	0.316328	0.2602505
+55.518/55.573	0.121500/0.1219	906.2737 mins	(8.280559 mins)	0.33262	0.2574938
+55.518/55.573	0.121600/0.1219	914.714 mins	(8.440313 mins)	0.327437	0.2568566
+55.518/55.573	0.121700/0.1219	923.044 mins	(8.330065 mins)	0.324908	0.257502
+55.518/55.573	0.121800/0.1219	931.4244 mins	(8.38036 mins)	0.336029	0.2630355
+55.518/55.573	0.121900/0.1219	939.7186 mins	(8.294151 mins)	0.31997	0.2578989
+
+
+55.523/55.573	0.120900/0.1219	948.1853 mins	(8.466752 mins)	0.317421	0.2610038
+55.523/55.573	0.121000/0.1219	956.4866 mins	(8.301312 mins)	0.305044	0.2558176
+55.523/55.573	0.121100/0.1219	964.8432 mins	(8.356593 mins)	0.317529	0.2576564
+55.523/55.573	0.121200/0.1219	973.0811 mins	(8.237878 mins)	0.310084	0.2577281
+55.523/55.573	0.121300/0.1219	981.3814 mins	(8.300277 mins)	0.319044	0.2612902
+55.523/55.573	0.121400/0.1219	989.7315 mins	(8.350126 mins)	0.323269	0.2619603
+55.523/55.573	0.121500/0.1219	998.27 mins	(8.538516 mins)	0.328391	0.2632034
+55.523/55.573	0.121600/0.1219	1006.784 mins	(8.513605 mins)	0.324096	0.2648793
+55.523/55.573	0.121700/0.1219	1015.341 mins	(8.557144 mins)	0.324546	0.2590483
+55.523/55.573	0.121800/0.1219	1023.839 mins	(8.498055 mins)	0.32709	0.2616381
+55.523/55.573	0.121900/0.1219	1032.294 mins	(8.454823 mins)	0.322044	0.2559438
+
+
+55.528/55.573	0.120900/0.1219	1040.795 mins	(8.501338 mins)	0.323598	0.2617878
+55.528/55.573	0.121000/0.1219	1049.356 mins	(8.560617 mins)	0.319217	0.2620007
+55.528/55.573	0.121100/0.1219	1057.874 mins	(8.518204 mins)	0.323958	0.2591024
+55.528/55.573	0.121200/0.1219	1066.352 mins	(8.478299 mins)	0.321835	0.2611001
+55.528/55.573	0.121300/0.1219	1074.646 mins	(8.29438 mins)	0.318996	0.2605402
+55.528/55.573	0.121400/0.1219	1082.893 mins	(8.246224 mins)	0.318791	0.2625374
+55.528/55.573	0.121500/0.1219	1091.519 mins	(8.626136 mins)	0.328012	0.2616221
+55.528/55.573	0.121600/0.1219	1099.808 mins	(8.28875 mins)	0.326142	0.2594407
+55.528/55.573	0.121700/0.1219	1108.083 mins	(8.275207 mins)	0.313024	0.2618781
+55.528/55.573	0.121800/0.1219	1116.69 mins	(8.607632 mins)	0.331954	0.2639232
+55.528/55.573	0.121900/0.1219	1125.246 mins	(8.555141 mins)	0.338839	0.2636065
+
+
+55.533/55.573	0.120900/0.1219	1133.673 mins	(8.427769 mins)	0.319802	0.2639314
+55.533/55.573	0.121000/0.1219	1142.178 mins	(8.504447 mins)	0.324571	0.2641708
+55.533/55.573	0.121100/0.1219	1150.602 mins	(8.423921 mins)	0.315605	0.2588348
+55.533/55.573	0.121200/0.1219	1158.926 mins	(8.323942 mins)	0.306029	0.2630053
+55.533/55.573	0.121300/0.1219	1167.40 mins	(8.474683 mins)	0.325183	0.2580532
+55.533/55.573	0.121400/0.1219	1176.161 mins	(8.760664 mins)	0.331599	0.2572497
+55.533/55.573	0.121500/0.1219	1184.898 mins	(8.736588 mins)	0.324319	0.257246
+55.533/55.573	0.121600/0.1219	1193.58 mins	(8.681981 mins)	0.323219	0.2566337
+55.533/55.573	0.121700/0.1219	1202.062 mins	(8.482826 mins)	0.316242	0.2626582
+55.533/55.573	0.121800/0.1219	1210.55 mins	(8.487572 mins)	0.327023	0.2611174
+55.533/55.573	0.121900/0.1219	1219.004 mins	(8.453823 mins)	0.310765	0.2646244
+
+
+55.538/55.573	0.120900/0.1219	1227.445 mins	(8.441419 mins)	0.319448	0.2573068
+55.538/55.573	0.121000/0.1219	1236.172 mins	(8.727286 mins)	0.316947	0.258105
+55.538/55.573	0.121100/0.1219	1244.915 mins	(8.742951 mins)	0.315643	0.2622843
+55.538/55.573	0.121200/0.1219	1253.582 mins	(8.666451 mins)	0.321635	0.2619571
+55.538/55.573	0.121300/0.1219	1262.641 mins	(9.058877 mins)	0.332233	0.2667481
+55.538/55.573	0.121400/0.1219	1271.868 mins	(9.227491 mins)	0.32582	0.2638907
+55.538/55.573	0.121500/0.1219	1280.479 mins	(8.610766 mins)	0.321536	0.263755
+55.538/55.573	0.121600/0.1219	1289.037 mins	(8.557794 mins)	0.31219	0.259734
+55.538/55.573	0.121700/0.1219	1297.566 mins	(8.528717 mins)	0.321843	0.2610828
+55.538/55.573	0.121800/0.1219	1306.101 mins	(8.535277 mins)	0.324832	0.2695711
+55.538/55.573	0.121900/0.1219	1314.52 mins	(8.419135 mins)	0.308467	0.2612189
+
+
+55.543/55.573	0.120900/0.1219	1322.843 mins	(8.323512 mins)	0.320468	0.259939
+55.543/55.573	0.121000/0.1219	1331.343 mins	(8.500031 mins)	0.31686	0.2598339
+55.543/55.573	0.121100/0.1219	1339.898 mins	(8.554791 mins)	0.330752	0.2688125
+55.543/55.573	0.121200/0.1219	1348.293 mins	(8.394235 mins)	0.321988	0.2583646
+55.543/55.573	0.121300/0.1219	1356.657 mins	(8.364009 mins)	0.321818	0.2645503
+55.543/55.573	0.121400/0.1219	1365.153 mins	(8.496632 mins)	0.328859	0.2643896
+55.543/55.573	0.121500/0.1219	1373.725 mins	(8.57158 mins)	0.321515	0.2600955
+55.543/55.573	0.121600/0.1219	1382.199 mins	(8.474537 mins)	0.326868	0.2644998
+55.543/55.573	0.121700/0.1219	1390.844 mins	(8.644802 mins)	0.33504	0.2616859
+55.543/55.573	0.121800/0.1219	1399.419 mins	(8.575234 mins)	0.328762	0.2644059
+55.543/55.573	0.121900/0.1219	1407.661 mins	(8.241215 mins)	0.318626	0.2637588
+
+
+55.548/55.573	0.120900/0.1219	1416.14 mins	(8.479023 mins)	0.329305	0.2628252
+55.548/55.573	0.121000/0.1219	1424.352 mins	(8.21291 mins)	0.302121	0.2501968
+55.548/55.573	0.121100/0.1219	1432.532 mins	(8.179636 mins)	0.30785	0.2505326

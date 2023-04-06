@@ -191,15 +191,15 @@ metrics <- function(results) {
 ##############################
 #### Metropolis Algorithm ####
 ##############################
-score <- function(obs, target) {
+score <- function(fit, tgt) {
   # The score is the L² distance of the observed values from the target.
-  return(sum((obs - target)^2))
+  return(sum((fit - tgt)^2))
 }
 
 # The likelihood is calculated by first averaging the incidence and SAR over n
 # simulations with the state parameters. The likelihood is the negative log
 # score of the average incidence and SAR.
-likelihood <- function(state, target, n = 300) {
+likelihood <- function(state, tgt, n = 300, verbose = T) {
   # If either parameter is nonpositive, do not transition to that state.
   if (any(state <= 0)) {
     return(-Inf)
@@ -210,12 +210,19 @@ likelihood <- function(state, target, n = 300) {
     metrics(results)
   }
   vals <- matrix(vals, n, byrow = T)
-  avg_vals <- colMeans(vals)
-  return(-log(score(avg_vals, target)))
+  fit <- colMeans(vals)
+  
+  if (verbose) {
+    cat('(', 
+        format(fit[1], digits = 4, nsmall = 4), ' ',
+        format(fit[2], digits = 4, nsmall = 4), ')\t', sep = '')
+  }
+      
+  return(-log(score(fit, tgt)))
 }
 
 # Proposal function
-q <- function(state, sds = c(0.1, 0.001)) {
+q <- function(state, sds = c(0.05, 0.0005)) {
   # Sample from a multivariate normal distributions centered at the current 
   # state. The SDs roughly correspond to the step-size of the chain for each 
   # parameter.
@@ -223,13 +230,17 @@ q <- function(state, sds = c(0.1, 0.001)) {
 }
 
 # MCMC
-metropolis <- function(start, target, num_sim, num_iter) {
+metropolis <- function(start, tgt, num_sim, num_iter) {
   path <- matrix(NA, num_iter + 1, 2)
   liks <- rep(NA, num_iter + 1)
   
+  cat('START:', '\t', sep = '')
+  
   # Initialize current state.
   curr <- start
-  curr_lik <- likelihood(curr, target, num_sim)
+  curr_lik <- likelihood(curr, tgt, num_sim)
+  
+  cat('\n')
   
   # Initialize best state.
   best <- curr
@@ -238,21 +249,31 @@ metropolis <- function(start, target, num_sim, num_iter) {
     # Save the current state and its likelihood.
     path[i, ] <- curr
     liks[i] <- curr_lik
+      
+    cat(i, '\t[', 
+        format(curr[1], digits = 5, nsmall = 3), ' ', 
+        format(curr[2], digits = 3, nsmall = 4), ']\t', 
+        format(curr_lik, digits = 3, nsmall = 3), '\t', sep = '')
     
     # Get a proposed state and calculate its likelihood.
     prop <- q(curr)
-    prop_lik <- likelihood(prop, target, num_sim)
     
+    cat('[', 
+        format(prop[1], digits = 5, nsmall = 3), ' ', 
+        format(prop[2], digits = 3, nsmall = 4), '] ', sep = '')
+    
+    prop_lik <- likelihood(prop, tgt, num_sim)
+    
+    cat(format(prop_lik, digits = 3, nsmall = 3), '\t', sep = '')
+      
     # Compute the ratio of the scores of the two states and generate a uniform 
     # bit.
     r <- exp(prop_lik - curr_lik)
     p <- runif(1)
     
     # Print the current progress.
-    message(paste0(i, '\t[', round(curr[1], 3), '\t', round(curr[2], 5), 
-                   ']\t', round(curr_lik, 3), '\t', 
-                   '\t[', round(prop[1], 3), '\t', round(prop[2], 5), ']\t',
-                   round(prop_lik, 3), '\t', round(r, 3), '\t', round(p, 3)))
+    cat(format(r, digits = 3, nsmall = 3), '\t', 
+        format(p, digits = 3, nsmall = 3), '\n', sep = '')
     
     # Transition if the proposed state is better or if the coin flip succeeds.
     if (p < r) { 
@@ -279,8 +300,8 @@ metropolis <- function(start, target, num_sim, num_iter) {
 
 # Solve for optimal values via MCMC.
 target <- c(0.05, 0.25)
-start <- c(56.2348166792159, 0.0690656636591525)
-results <- metropolis(start, target, num_sim = 1000, num_iter = 500)
+start <- c(55.9281356104072, 0.0684567246743088)
+results <- metropolis(start, target, num_sim = 2000, num_iter = 200)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]

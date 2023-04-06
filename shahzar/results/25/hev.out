@@ -20,8 +20,8 @@ Type 'q()' to quit R.
 > rm(list = ls())
 > gc()
          used (Mb) gc trigger (Mb) max used (Mb)
-Ncells 275325 14.8     662942 35.5   468594 25.1
-Vcells 462880  3.6    8388608 64.0  1820274 13.9
+Ncells 275507 14.8     663402 35.5   469283 25.1
+Vcells 463357  3.6    8388608 64.0  1822500 14.0
 > library(dplyr)
 
 Attaching package: ‘dplyr’
@@ -43,7 +43,7 @@ Loading required package: parallel
 > # Use detectCores() to find out how many cores are available.
 > message(detectCores())
 24
-> num_cores <- 24
+> num_cores <- detectCores()
 > registerDoParallel(num_cores)
 > 
 > #########################
@@ -213,6 +213,7 @@ Loading required package: parallel
 +   return(results)
 + }
 > 
+> 
 > metrics <- function(results) {
 +   # Incidence is the proportion of the population that became infected.
 +   idc <- mean(!is.na(results$TIME))
@@ -226,46 +227,45 @@ Loading required package: parallel
 +   return(c(idc, sar))
 + }
 > 
+> 
 > ###################
 > #### FIRST SET ####
 > ###################
-> message('Set 1')
-Set 1
-> params <- c(56.2348166792159, 0.0690656636591525)
+> #message('Set 1')
+> #params <- c(55.9281356104072, 0.0684567246743088)
 > 
-> reps <- 10000
-> idcs <- rep(NA, reps)
-> sars <- rep(NA, reps)
-> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-+   results <- SEIR(params, inc, inf, verbose = F) 
-+   metrics(results)
-+ }
-> vals <- matrix(vals, reps, byrow = T)
-> idcs <- vals[, 1]
-> sars <- vals[, 2]
-> write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
-> write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
+> #reps <- 10000
+> #idcs <- rep(NA, reps)
+> #sars <- rep(NA, reps)
+> #vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+> #  results <- SEIR(params, inc, inf, verbose = F) 
+> #  metrics(results)
+> #}
+> #vals <- matrix(vals, reps, byrow = T)
+> #idcs <- vals[, 1]
+> #sars <- vals[, 2]
+> #write.table(idcs, file = 'idcs_1.txt', row.names = F, col.names = F)
+> #write.table(sars, file = 'sars_1.txt', row.names = F, col.names = F)
 > 
 > 
 > ####################
 > #### SECOND SET ####
 > ####################
-> message('Set 2')
-Set 2
-> params <- c(54.6267093106321, 0.087119522123414)
+> #message('Set 2')
+> #params <- c(54.8059305155253, 0.0857069414737171)
 > 
-> reps <- 10000
-> idcs <- rep(NA, reps)
-> sars <- rep(NA, reps)
-> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
-+   results <- SEIR(params, inc, inf, verbose = F) 
-+   metrics(results)
-+ }
-> vals <- matrix(vals, reps, byrow = T)
-> idcs <- vals[, 1]
-> sars <- vals[, 2]
-> write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
-> write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
+> #reps <- 10000
+> #idcs <- rep(NA, reps)
+> #sars <- rep(NA, reps)
+> #vals <- foreach (j = 1:reps, .combine = c) %dopar% {
+> #  results <- SEIR(params, inc, inf, verbose = F) 
+> #  metrics(results)
+> #}
+> #vals <- matrix(vals, reps, byrow = T)
+> #idcs <- vals[, 1]
+> #sars <- vals[, 2]
+> #write.table(idcs, file = 'idcs_2.txt', row.names = F, col.names = F)
+> #write.table(sars, file = 'sars_2.txt', row.names = F, col.names = F)
 > 
 > 
 > ###################
@@ -273,10 +273,21 @@ Set 2
 > ###################
 > message('Set 3')
 Set 3
-> params <- c(51.2386100875685, 0.122167209713071
-+ 
-+ reps <- 10000
-Error: unexpected symbol in:
-"
-reps"
-Execution halted
+> params <- c(52.6740892462374, 0.121665484115338)
+> 
+> reps <- 10000
+> idcs <- rep(NA, reps)
+> sars <- rep(NA, reps)
+> vals <- foreach (j = 1:reps, .combine = c) %dopar% {
++   results <- SEIR(params, inc, inf, verbose = F) 
++   metrics(results)
++ }
+> vals <- matrix(vals, reps, byrow = T)
+> idcs <- vals[, 1]
+> sars <- vals[, 2]
+> write.table(idcs, file = 'idcs_3.txt', row.names = F, col.names = F)
+> write.table(sars, file = 'sars_3.txt', row.names = F, col.names = F)
+> 
+> proc.time()
+      user     system    elapsed 
+105454.807   1104.973   4754.862 

@@ -112,8 +112,8 @@ SEIR <- function(params, inc, inf, verbose = F) {
     # Calculate household risk and community risk.
     beta_H <- params[1]
     beta_C <- params[2]
-    risk_H <- beta_H * data$S * I_data$I_H / N
-    risk_C <- beta_C * data$S * I_data$I_C / N
+    risk_H <- pmin(beta_H * data$S * I_data$I_H / N, 1)
+    risk_C <- pmin(beta_C * data$S * I_data$I_C / N, 1)
     
     # Each individual is infected from their household or community 
     # independently with probabilities risk_H and risk_C.
@@ -163,8 +163,11 @@ SEIR <- function(params, inc, inf, verbose = F) {
 
 # simple environmental transmission
 
-# blended person-person and environmental transmission model
 
+# blended person-person and environmental transmission model
+# Before, fit the ratio of p_P:p_E and incidence
+# 25/75, 50/50, and 75/25
+# For each incidence, hit 25% SAR, 
 
 metrics <- function(results) {
   # Incidence is the proportion of the population that became infected.

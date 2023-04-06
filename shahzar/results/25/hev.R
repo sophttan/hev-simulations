@@ -7,7 +7,7 @@ library(doParallel)
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
 message(detectCores())
-num_cores <- 24
+num_cores <- detectCores()
 registerDoParallel(num_cores)
 
 #########################
@@ -196,7 +196,7 @@ metrics <- function(results) {
 #### FIRST SET ####
 ###################
 #message('Set 1')
-#params <- c(56.2348166792159, 0.0690656636591525)
+#params <- c(55.9281356104072, 0.0684567246743088)
 
 #reps <- 10000
 #idcs <- rep(NA, reps)
@@ -216,7 +216,7 @@ metrics <- function(results) {
 #### SECOND SET ####
 ####################
 #message('Set 2')
-#params <- c(54.6267093106321, 0.087119522123414)
+#params <- c(54.8059305155253, 0.0857069414737171)
 
 #reps <- 10000
 #idcs <- rep(NA, reps)
@@ -236,7 +236,7 @@ metrics <- function(results) {
 #### THIRD SET ####
 ###################
 message('Set 3')
-params <- c(51.2386100875685, 0.122167209713071)
+params <- c(52.6740892462374, 0.121665484115338)
 
 reps <- 10000
 idcs <- rep(NA, reps)
