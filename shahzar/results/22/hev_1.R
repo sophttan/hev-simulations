@@ -158,7 +158,8 @@ metrics <- function(results) {
   if (idc != 0) {
     # The proportion of household infections is the proportion of infections that
     # were from the household.
-    prp <- mean(results[!is.na(results$TIME), ]$TYPE == 'H')
+    ### PERHAPS THIS SHOULD HAVE BEEN TYPE == H or TYPE == B!
+    prp <- mean(results[!is.na(results$TIME), ]$TYPE != 'C')
   }
   return(c(idc, prp))
 }

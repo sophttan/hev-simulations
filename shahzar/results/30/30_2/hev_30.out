@@ -1,0 +1,343 @@
+
+R version 4.2.2 Patched (2022-11-10 r83330) -- "Innocent and Trusting"
+Copyright (C) 2022 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 275507 14.8     663402 35.5   469283 25.1
+Vcells 463357  3.6    8388608 64.0  1822500 14.0
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> #########################
+> #### SEIR Simulation ####
+> #########################
+> time <- 365 # Number of days.
+> inc <- 28 # Average incubation period length.
+> inf <- 7 # Average infectious period length.
+> N <- 1000 # Population size.
+> 
+> create_hh <- function() {
++   # Randomly sample household sizes such that total population is 1000 
++   # individuals.
++   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
++   
++   # Keep households such that total population is < 1000.
++   hh_size <- hh_size[which(cumsum(hh_size) < N)]
++   
++   leftover <- N - sum(hh_size)
++   if (leftover < 3) {
++     hh <- 1:length(hh_size)
++     sampled <- sample(hh[hh_size < 6], leftover)
++     hh_size[sampled] <- hh_size[sampled] + 1
++   } else {
++     hh_size <- c(hh_size, leftover)
++   }
++   return(hh_size)
++ }
+> 
+> SEIR <- function(params, inc, inf, verbose = F) {
++   hh_size <- create_hh()
++   
++   # Create frame for running the simulation.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # S: susceptibility status.
++   # E: exposed status.
++   # E_count: number of days since exposed.
++   # I: infectious status.
++   # I_count: number of days since infectious.
++   # R: recovered status.
++   # INC: incubation period.
++   # INF: infectious period.
++   data <- data.frame(ID = 1:N,
++                     SIZE = rep(hh_size, times = hh_size),
++                     HH = rep(1:length(hh_size), times = hh_size), 
++                     S = c(0, rep(1, N - 1)), 
++                     E = c(1, rep(0, N - 1)),
++                     E_count = c(1, rep(0, N - 1)), 
++                     I = 0,
++                     I_count = 0, 
++                     R = 0, 
++                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
++                     INF = 0)
++   
++   # Create frame for storing results.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # TYPE: the kind of infection: household (H), community (C), or both (B).
++   # TIME: when the individual became infectious.
++   # S_num: number of susceptible people in individual's household when their 
++   #        infectious period begins.
++   # I_num: number of people in household that this individual infected over 
++   #        their infectious period.
++   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
++   results$TYPE[1] <- '0'
++   
++   for(t in 1:time) {
++     if (verbose) {
++       if (t %% 10 == 0) {
++         cat(paste0(t, ' '))
++       }
++     }
++     
++     # Anyone who has been infectious for as many days as their infectious period
++     # is now recovered.
++     recovered <- (data$INF > 0) & (data$I_count == data$INF)
++     if(sum(recovered, na.rm = T) > 0) {
++       data$R[recovered] <- 1
++       data$I[recovered] <- 0
++       data$I_count[recovered] <- 0 
++     }
++     
++     # Anyone who has been incubating for as many days as their incubation period
++     # is now infectious.
++     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
++     num_new_inf <- sum(new_inf, na.rm = T)
++     if(num_new_inf > 0) {
++       # Change status to newly infectious and add infectious period.
++       data$I[new_inf] <- 1
++       random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
++       data$INF[new_inf] <- random_inf
++       
++       # Remove exposure status and exposure count.
++       data$E[new_inf] <- 0
++       data$E_count[new_inf] <- 0 
++       
++       # Record time at which infectious period starts.
++       results$TIME[new_inf] <- t
++       
++       # Save the number of susceptible people in each infectious individual's 
++       # household.
++       S_data <- data %>% group_by(HH) %>% 
++         mutate(S_tot = sum(S)) %>% 
++         select(HH, S_tot)
++       results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
++     }
++     
++     # I_H is the number of infections inside each household.
++     # I_C is the number of infections outside each household.
++     I_data <- data %>% group_by(HH) %>% 
++       mutate(I_H = sum(I)) %>% 
++       ungroup() %>% 
++       mutate(I_C = sum(I) - I_H)
++     
++     # Calculate household risk and community risk.
++     beta_H <- params[1]
++     beta_C <- params[2]
++     risk_H <- beta_H * data$S * I_data$I_H / N
++     risk_C <- beta_C * data$S * I_data$I_C / N
++     
++     # Each individual is infected from their household or community 
++     # independently with probabilities risk_H and risk_C.
++     new_inf_H <- rbinom(nrow(data), 1, risk_H)
++     new_inf_C <- rbinom(nrow(data), 1, risk_C)
++     
++     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
++     num_new_exposed <- sum(new_exposed, na.rm = T)
++     if (num_new_exposed > 0) {
++       # Change status to newly exposed and add incubation period.
++       data$E[new_exposed] <- 1
++       random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
++       data$INC[new_exposed] <- random_inc
++       
++       # Remove susceptible status.
++       data$S[new_exposed] <- 0
++       
++       # Label community infections with C and household infections with H.
++       results$TYPE[new_inf_C == 1] <- 'C'
++       results$TYPE[new_inf_H == 1] <- 'H'
++       
++       # Get number of new infections in each household.
++       I_data <- I_data %>%
++         select(ID, HH, I, I_H) %>%
++         mutate(new_I_H = new_inf_H) %>%
++         group_by(HH) %>%
++         # Find households with at least 1 currently infectious individual. If 
++         # exactly 1 infectious individual in household, assign all new H 
++         # exposures to that individual. If there are multiple infectious 
++         # individuals, assign all infections to the infectious individual with 
++         # the first ID.
++         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
++                                 sum(new_I_H), 0))
++       
++       results$I_num <- results$I_num + I_data$new_I_H
++         
++       # Label individuals with both a household and community infection with B.
++       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
++     }
++     
++     # Increment exposure and infectious counters.
++     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
++     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
++   }
++   return(results)
++ }
+> 
+> metrics <- function(results) {
++   # Incidence is the proportion of the population that became infected.
++   idc <- mean(!is.na(results$TIME))
++   
++   # If incidence is 0, the SAR is undefined.
++   sar <- NA
++   if (idc != 0) {
++     # The SAR is the average SAR for each individual that was infectious.
++     sar <- mean(results$I_num / results$S_num, na.rm = T)
++   }
++   return(c(idc, sar))
++ }
+> 
+> beta_Hs <- seq(55.548, 55.573, 0.005)
+> beta_Cs <- seq(0.1209, 0.1219, 0.0001)
+> 
+> a <- length(beta_Hs)
+> b <- length(beta_Cs)
+> 
+> reps <- 1000
+> idcs <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+> sars <- array(rep(NA, a * b * reps), dim = c(a, b, reps))
+> t_tot <- 0
+> for (i in 1:a) {
++   for (j in 1:b) {
++     beta_H <- beta_Hs[i]
++     beta_C <- beta_Cs[j]
++     params <- c(beta_H, beta_C)
++       
++     t_0 <- Sys.time()
++     vals <- foreach (k = 1:reps, .combine = 'c') %dopar% {
++       results <- SEIR(params, inc, inf, verbose = F) 
++       metrics(results)
++     }
++     t_1 <- Sys.time()
++     t_tot <- t_tot + (t_1 - t_0)
++     vals <- matrix(vals, reps, byrow = T)
++     idcs[i, j, ] <- vals[, 1]
++     sars[i, j, ] <- vals[, 2]
++     message(paste0(format(beta_H, digits = 5, nsmall = 3), '/55.573\t', 
++                    format(beta_C, digits = 4, nsmall = 4), '/0.1219\t',  
++                    format(t_tot, nsmall = 2), '\t(', format(t_1 - t_0, nsmall = 2), ')\t', 
++                    format(mean(vals[, 1]), nsmall = 3), '\t', 
++                    format(mean(vals[, 2]), nsmall = 3)))
++     write.table(idcs, file = 'idcs_30_2.txt', row.names = F, col.names = F)
++     write.table(sars, file = 'sars_30_2.txt', row.names = F, col.names = F)
++   }
++   message('\n')
++ }
+55.548/55.573	0.1209/0.1219	8.442195 mins	(8.442195 mins)	0.327626	0.267
+55.548/55.573	0.1210/0.1219	16.74848 mins	(8.306286 mins)	0.316649	0.2582727
+55.548/55.573	0.1211/0.1219	25.03412 mins	(8.285638 mins)	0.319482	0.2648258
+55.548/55.573	0.1212/0.1219	33.6475 mins	(8.613385 mins)	0.324278	0.2687987
+55.548/55.573	0.1213/0.1219	42.24151 mins	(8.594004 mins)	0.327312	0.2612505
+55.548/55.573	0.1214/0.1219	50.74081 mins	(8.499298 mins)	0.320297	0.2630923
+55.548/55.573	0.1215/0.1219	59.2488 mins	(8.507998 mins)	0.329673	0.2648999
+55.548/55.573	0.1216/0.1219	67.66232 mins	(8.413515 mins)	0.32629	0.2684656
+55.548/55.573	0.1217/0.1219	76.09881 mins	(8.436494 mins)	0.324769	0.2636077
+55.548/55.573	0.1218/0.1219	84.71022 mins	(8.61141 mins)	0.327228	0.2640963
+55.548/55.573	0.1219/0.1219	93.0092 mins	(8.298973 mins)	0.320423	0.2610117
+
+
+55.553/55.573	0.1209/0.1219	101.4959 mins	(8.486686 mins)	0.320899	0.263523
+55.553/55.573	0.1210/0.1219	109.9056 mins	(8.409745 mins)	0.327341	0.2667638
+55.553/55.573	0.1211/0.1219	118.2475 mins	(8.341851 mins)	0.316923	0.2590071
+55.553/55.573	0.1212/0.1219	126.5384 mins	(8.290891 mins)	0.320843	0.2559661
+55.553/55.573	0.1213/0.1219	134.9579 mins	(8.419519 mins)	0.306839	0.2526147
+55.553/55.573	0.1214/0.1219	143.3691 mins	(8.411192 mins)	0.323121	0.2560879
+55.553/55.573	0.1215/0.1219	151.6816 mins	(8.312506 mins)	0.325521	0.2678193
+55.553/55.573	0.1216/0.1219	160.3882 mins	(8.706589 mins)	0.329887	0.2644649
+55.553/55.573	0.1217/0.1219	168.9312 mins	(8.543074 mins)	0.332451	0.2617884
+55.553/55.573	0.1218/0.1219	177.5712 mins	(8.639922 mins)	0.333884	0.2705021
+55.553/55.573	0.1219/0.1219	186.0169 mins	(8.44572 mins)	0.321986	0.2600852
+
+
+55.558/55.573	0.1209/0.1219	194.3659 mins	(8.349053 mins)	0.315362	0.2562163
+55.558/55.573	0.1210/0.1219	202.7453 mins	(8.379385 mins)	0.313354	0.2565208
+55.558/55.573	0.1211/0.1219	211.1236 mins	(8.37829 mins)	0.317854	0.2614478
+55.558/55.573	0.1212/0.1219	219.651 mins	(8.527359 mins)	0.320871	0.2639052
+55.558/55.573	0.1213/0.1219	228.2323 mins	(8.581289 mins)	0.327052	0.26204
+55.558/55.573	0.1214/0.1219	236.6603 mins	(8.428046 mins)	0.318634	0.2551432
+55.558/55.573	0.1215/0.1219	245.1062 mins	(8.445913 mins)	0.319265	0.2556608
+55.558/55.573	0.1216/0.1219	253.664 mins	(8.557767 mins)	0.340634	0.2672371
+55.558/55.573	0.1217/0.1219	262.394 mins	(8.729977 mins)	0.330426	0.2632039
+55.558/55.573	0.1218/0.1219	270.9406 mins	(8.546659 mins)	0.331709	0.2638736
+55.558/55.573	0.1219/0.1219	279.5669 mins	(8.626304 mins)	0.335864	0.2650453
+
+
+55.563/55.573	0.1209/0.1219	287.9093 mins	(8.342337 mins)	0.322755	0.2668849
+55.563/55.573	0.1210/0.1219	296.2993 mins	(8.390076 mins)	0.30823	0.2522796
+55.563/55.573	0.1211/0.1219	304.7693 mins	(8.469976 mins)	0.319802	0.2623374
+55.563/55.573	0.1212/0.1219	313.334 mins	(8.56463 mins)	0.325522	0.2623122
+55.563/55.573	0.1213/0.1219	321.7881 mins	(8.454164 mins)	0.327838	0.2605507
+55.563/55.573	0.1214/0.1219	330.3269 mins	(8.538826 mins)	0.315857	0.260036
+55.563/55.573	0.1215/0.1219	338.8527 mins	(8.525714 mins)	0.323932	0.2627151
+55.563/55.573	0.1216/0.1219	347.0745 mins	(8.221843 mins)	0.312807	0.2627871
+55.563/55.573	0.1217/0.1219	355.6037 mins	(8.529233 mins)	0.321496	0.2593006
+55.563/55.573	0.1218/0.1219	364.0815 mins	(8.47775 mins)	0.331478	0.2637839
+55.563/55.573	0.1219/0.1219	372.4963 mins	(8.414858 mins)	0.315968	0.2580879
+
+
+55.568/55.573	0.1209/0.1219	380.8758 mins	(8.379436 mins)	0.313873	0.2566637
+55.568/55.573	0.1210/0.1219	389.4308 mins	(8.555059 mins)	0.323973	0.268855
+55.568/55.573	0.1211/0.1219	398.1906 mins	(8.75973 mins)	0.322614	0.2664731
+55.568/55.573	0.1212/0.1219	406.4717 mins	(8.281133 mins)	0.314662	0.2557479
+55.568/55.573	0.1213/0.1219	414.9177 mins	(8.445986 mins)	0.325127	0.2602486
+55.568/55.573	0.1214/0.1219	423.2077 mins	(8.290055 mins)	0.31844	0.2578552
+55.568/55.573	0.1215/0.1219	431.7296 mins	(8.521829 mins)	0.321572	0.2611208
+55.568/55.573	0.1216/0.1219	439.9372 mins	(8.20765 mins)	0.30741	0.2583354
+55.568/55.573	0.1217/0.1219	448.2764 mins	(8.339213 mins)	0.31746	0.2609505
+55.568/55.573	0.1218/0.1219	456.824 mins	(8.547593 mins)	0.319783	0.255801
+55.568/55.573	0.1219/0.1219	465.0452 mins	(8.221208 mins)	0.312685	0.2535405
+
+
+55.573/55.573	0.1209/0.1219	473.283 mins	(8.237744 mins)	0.311787	0.2583187
+55.573/55.573	0.1210/0.1219	481.7188 mins	(8.435789 mins)	0.322954	0.2613093
+55.573/55.573	0.1211/0.1219	490.2519 mins	(8.533141 mins)	0.320456	0.2627702
+55.573/55.573	0.1212/0.1219	498.5316 mins	(8.279703 mins)	0.321326	0.2610933
+55.573/55.573	0.1213/0.1219	506.9329 mins	(8.401343 mins)	0.319346	0.2569395
+55.573/55.573	0.1214/0.1219	515.2864 mins	(8.353408 mins)	0.320645	0.2661619
+55.573/55.573	0.1215/0.1219	523.9226 mins	(8.636236 mins)	0.314069	0.2595114
+55.573/55.573	0.1216/0.1219	532.2036 mins	(8.280983 mins)	0.3205	0.2617925
+55.573/55.573	0.1217/0.1219	540.5489 mins	(8.345292 mins)	0.319146	0.2593969
+55.573/55.573	0.1218/0.1219	548.9257 mins	(8.376828 mins)	0.317789	0.2571746
+55.573/55.573	0.1219/0.1219	557.4155 mins	(8.489829 mins)	0.336416	0.2623347
+
+
+> 
+> proc.time()
+      user     system    elapsed 
+703531.740   7622.689  33595.758 
