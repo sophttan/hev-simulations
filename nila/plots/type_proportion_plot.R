@@ -2,11 +2,13 @@ setwd("C:/Users/water/OneDrive/Documents/ucsf/hev-simulations/nila")
 
 library(tidyverse)
 
-inc_5 = read.csv("data_inc_5.csv") %>% mutate(i_percent = 5)
-inc_10 = read.csv("data_inc_10.csv") %>% mutate(i_percent = 10)
-inc_30 = read.csv("data_inc_30.csv") %>% mutate(i_percent = 30)
-inc = rbind(inc_5, inc_10, inc_30)
-inc$i_percent <- as.factor(inc$i_percent)
+source("load_hh.R")
+
+inc = load_hh(c(
+  "data_inc_5.csv",
+  "data_inc_10.csv",
+  "data_inc_30.csv"
+))
 
 prep_results <- function(data){
   prepped_wide = data %>% mutate(month = TIME %/% 31) %>%
