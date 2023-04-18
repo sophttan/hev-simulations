@@ -1,6 +1,5 @@
-setwd("C:/Users/water/OneDrive/Documents/ucsf/hev-simulations/nila")
-
 library(tidyverse)
+library(here)
 
 # load_env_inc - loading person-to-person & environmental data sets
 # ~inputs~
@@ -36,13 +35,14 @@ load_env_hh <- function(hh_relpath, env_relpath){
   list(inc, env)
 }
 
-# # uncomment to run example code
-# hh_relpath = c("data_inc_5.csv", "data_inc_10.csv", "data_inc_30.csv")
-# env_relpath =
-#   c("../results/separate_models/cumulative_inc_5/simulated_data/environmental.csv",
-#     "../results/separate_models/cumulative_inc_10/simulated_data/environmental.csv",
-#     "../results/separate_models/cumulative_inc_30/simulated_data/environmental.csv")
-# 
-# hh_env = load_env_hh(hh_relpath, env_relpath)
-# hh = hh_env[[1]]
-# env = hh_env[[2]]
+# getting the person-to-person and environment datsets
+hh_relpath = here("nila", "plots", "data", c("inc_5.csv", "inc_10.csv", "inc_30.csv"))
+env_relpath = here("results", "separate_models", c(
+  "cumulative_inc_5",
+  "cumulative_inc_10",
+  "cumulative_inc_30"),
+  "simulated_data", "environmental.csv")
+
+hh_env = load_env_hh(hh_relpath, env_relpath)
+hh = hh_env[[1]]
+env = hh_env[[2]]

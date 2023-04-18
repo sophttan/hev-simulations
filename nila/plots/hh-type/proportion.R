@@ -1,14 +1,9 @@
-setwd("C:/Users/water/OneDrive/Documents/ucsf/hev-simulations/nila")
-
 library(tidyverse)
+library(here)
 
-inc_5 = read.csv("data_inc_5.csv") %>% mutate(i_percent = 5)
-inc_10 = read.csv("data_inc_10.csv") %>% mutate(i_percent = 10)
-inc_30 = read.csv("data_inc_30.csv") %>% mutate(i_percent = 30)
-inc = rbind(inc_5, inc_10, inc_30)
-inc$i_percent <- as.factor(inc$i_percent)
+source(here("nila", "plots", "loading-files", "hh.R"))
 
-prep_results <- function(data){
+prep_type_prop <- function(data){
   prepped_wide = data %>% mutate(month = TIME %/% 31) %>%
     mutate(has_hh = TYPE == "H", has_env = TYPE == "C") %>%
     group_by(i_percent, i, month) %>% summarise(has_hh = mean(has_hh), has_env = mean(has_env)) %>%
@@ -16,9 +11,7 @@ prep_results <- function(data){
   prepped_long <- gather(prepped_wide, type, proportion, has_hh:has_env, factor_key=TRUE)
 }
 
-prep_df = prep_results(inc)
-
-plot_results <- function(data){
+plot_type_prop <- function(data){
   p = ggplot(data, aes(x = month, y = proportion, colour = type)) +
     geom_line()
   p +
@@ -26,6 +19,15 @@ plot_results <- function(data){
     facet_grid(cols = vars(i_percent)) +
     scale_color_discrete(name = "Type of transmission", label = c("person-to-person", "environmental")) +
     theme_minimal()
+  
+  ggsave("type_proportion_plot.png",
+         path = here("nila", "plots", "images"),
+         width = 2000, height = 1500, units = "px")
 }
 
-plot_results(prep_df)
+type_proportion <- function(data){
+  prepped = prep_type_prop(data)
+  plot_type_prop(prepped)
+}
+
+type_proportion(inc)
