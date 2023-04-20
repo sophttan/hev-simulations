@@ -2,7 +2,7 @@ rm(list=ls())
 gc()
 library(tidyverse)
 
-setwd(here::here("results/separate_models/cumulative_inc_10/"))
+setwd(here::here("results/separate_models/cumulative_inc_5/"))
   hh1 <- read_csv("simulated_data/hh_75h25c.csv")
 hh2 <- read_csv("simulated_data/hh_50h50c.csv")
 hh5 <- read_csv("simulated_data/hh_25h75c.csv")
