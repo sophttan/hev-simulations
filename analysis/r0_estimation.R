@@ -6,67 +6,68 @@ library(tidyverse)
 library(purrr)
 library(EpiEstim)
 
-setwd(here::here("results/separate_models/cumulative_inc_10/"))
+setwd(here::here("results"))
 
-inf1 <- read_csv("simulated_data/environmental.csv")
-inf2 <- read_csv("simulated_data/hh_75h25c.csv")
-# inf3 <- read_csv("simulated_data/hh_50h50c.csv")
-inf4 <- read_csv("simulated_data/hh_25h75c.csv")
+#data <- read_csv("hev-comparison/data_inc_30.csv") %>% rename("time"="TIME")
+data <- read_csv("separate_models/cumulative_inc_5/simulated_data/environmental.csv")
 
-inf1
+data
 ?wallinga_teunis
 
-
-t <- inf2 %>% group_by(i, HH, time) %>% 
-  arrange(HH, time) %>% summarise(incid=n()) %>% ungroup()
-
-R0 <- NULL
-for (j in unique(t$i)) {
-  data <- t %>% filter(i==j) %>% select(!HH) %>% 
-    full_join(expand.grid(i=j, time=1:364)) %>% replace_na(list(incid=0)) %>%
-    arrange(time)
-  res <- estimate_R(data$incid,
-                    method="parametric_si", 
-                    config = list(mean_si=28+4, std_si=4,
-                                  t_start=2:(364-45+1),
-                                  t_end=46:364))
-  R0 <- rbind(R0, res$R %>% mutate(i=j))
-}
-
-(R0 %>% group_by(i) %>% summarise(meanR0=mean(`Mean(R)`,na.rm=T)))$meanR0 %>% mean()
-
-
 probability <- function(inc_prim, inc_sec) {
-  # calculate probability that primary case caused secondary case based on their incidences
+  # calculate relative likelihood that primary case caused secondary case based on their incidences
+  # serial interval is approximate
   results <- dnorm(inc_sec-inc_prim, mean=31.5, sd=4)
+  # if primary case happens after secondary case, set probability to 0
   results[inc_prim>=inc_sec] <- 0
+  if(sum(results)==0){return(results)}
+
   return(results/sum(results))
 }
 
-t <- inf4 %>% group_by(i) %>% 
+t <- data %>% group_by(i) %>% 
   mutate(id=1:n()) 
 
+# res stores results
 res<-NULL
 for (j in unique(t$i)) {
+  # for each simulation in 1000 simulations, estimate total R and total R from households
   data <- t %>% filter(i==j) %>% mutate(id=1:n())
-  primary<-NULL
-  hh_primary<-NULL
-  for (inc in data$time) {
-    probs <- probability(data$time, inc)
-    most_likely <- data$id[probs==max(probs)]
-    most_likely <- ifelse(all(most_likely%>%is.na()), NA, most_likely)
-    hh_most_likely <- data$HH[probs==max(probs)]
-    hh_most_likely <- ifelse(all(hh_most_likely%>%is.na()), NA, hh_most_likely)
-    primary <- c(primary, most_likely)
-    hh_primary <- c(hh_primary, hh_most_likely)
+  R<-rep(0, nrow(data))
+  R_hh<-rep(0, nrow(data))
+  for (k in 1:nrow(data)) {
+    # for each case in the simulated outbreak
+    # find relative likelihoods of infection from all other cases in the population
+    probs <- probability(data$time, data$time[k])
+    hh_probs <- probs
+    # set likelihoods to 0 if not within same household - but should this be reweighted instead?
+    hh_probs[data$HH!=data$HH[k]] <- 0
+    # R is the sum of the likelihoods for each case
+    R <- R + probs
+    R_hh <- R_hh + hh_probs
   }
-  res<-res %>% rbind(data%>%mutate(primary=primary, hh_primary=hh_primary))
+  res<-res %>% rbind(data%>%mutate(R=R, R_hh=R_hh))
 }
 
-(res %>% group_by(i, primary) %>% summarise(R0_HH=n()) %>% 
-    group_by(i) %>% summarise(R0_HH=mean(R0_HH)))$R0_HH %>% mean()
-(res %>% group_by(i, primary) %>% summarise(R0_HH=sum(hh_primary==HH,na.rm=T)) %>% 
-    group_by(i) %>% summarise(R0_HH=mean(R0_HH)))$R0_HH %>% mean()
-
-(res %>% mutate(same_hh=HH==hh_primary) %>% group_by(i) %>% summarise(same_hh=mean(same_hh,na.rm=T)))$same_hh%>%mean(na.rm=T)
 res
+
+(res %>% group_by(i) %>% summarise(R=mean(R), R_hh=mean(R_hh), R_hh/R)) %>% summarise_all(mean)
+
+
+# t <- inf2 %>% group_by(i, HH, time) %>% 
+#   arrange(HH, time) %>% summarise(incid=n()) %>% ungroup()
+# 
+# R0 <- NULL
+# for (j in unique(t$i)) {
+#   data <- t %>% filter(i==j) %>% select(!HH) %>% 
+#     full_join(expand.grid(i=j, time=1:364)) %>% replace_na(list(incid=0)) %>%
+#     arrange(time)
+#   res <- estimate_R(data$incid,
+#                     method="parametric_si", 
+#                     config = list(mean_si=28+4, std_si=4,
+#                                   t_start=2:(364-45+1),
+#                                   t_end=46:364))
+#   R0 <- rbind(R0, res$R %>% mutate(i=j))
+# }
+# 
+# (R0 %>% group_by(i) %>% summarise(meanR0=mean(`Mean(R)`,na.rm=T)))$meanR0 %>% mean()
