@@ -21,7 +21,7 @@ create_hh <- function() {
 }
 
 # simple person-person transmission
-SEIR <- function(params, inc, inf, verbose = F) {
+SEIR <- function(params, inf, verbose = F) {
   hh_size <- create_hh()
   
   # Create frame for running the simulation.
@@ -45,7 +45,7 @@ SEIR <- function(params, inc, inf, verbose = F) {
                      I = 0,
                      I_count = 0, 
                      R = 0, 
-                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
+                     INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
                      INF = 0)
   
   # Create frame for storing results.
@@ -125,7 +125,7 @@ SEIR <- function(params, inc, inf, verbose = F) {
     if (num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed] <- 1
-      random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
+      random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
       data$INC[new_exposed] <- random_inc
       
       # Remove susceptible status.
@@ -172,13 +172,64 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
+
+
 # simple environmental transmission
+SEIR_environment <- function(b, inf) {
+  hh_size <- create_hh()
+  
+  d <- data.frame(No=1:1000, 
+                  HHsize=rep(hh_size, times=hh_size),
+                  HH=rep(1:length(hh_size), times=hh_size), 
+                  S=1, 
+                  E=0, Ecounter=0, 
+                  I=0, Icounter=0, 
+                  R=0, 
+                  inc=0, inf=0) # variable number of households (size 3-6), total pop of 1000
+  res <- d[,1:3] %>% mutate(Type=NA, time=NA)
+  
+  for (i in 1:time) {
+    recovered <- d$inf>0 & d$Icounter==d$inf
+    if(sum(recovered,na.rm=T)>0) {
+      d$R[recovered] <- 1
+      d$I[recovered] <- 0
+      d$Icounter[recovered] <- 0 
+    }
+    
+    new_inf <- d$inc>0 &d$Ecounter==d$inc
+    if(sum(new_inf,na.rm=T)>0) {
+      random_inf <- rnorm(sum(new_inf, na.rm=T), mean=inf, sd=1) %>% round()
+      d$I[new_inf] <- 1
+      d$inf[new_inf] <- random_inf
+      d$E[new_inf] <- 0
+      d$Ecounter[new_inf] <- 0 
+    }
+    
+    risk <- b*d$S
+    
+    new_exposed <- rbinom(nrow(d), 1, risk)
+    
+    if(sum(new_exposed)>0) {
+      d$E[new_exposed==1] <- 1
+      d$inc[new_exposed==1] <- rlnorm(sum(new_exposed, na.rm=T), meanlog = log(29.8), sdlog = 0.45) %>% round()
+      res <- res %>% mutate(time = ifelse(new_exposed==1, i, time))
+    }
+    
+    d$Ecounter[d$E==1] <- d$Ecounter[d$E==1] + 1
+    d$Icounter[d$I==1] <- d$Icounter[d$I==1] + 1
+    d$S[d$E==1] <- 0
+  }
+  
+  return(res)
+}
+
+
 
 # blended person-person and environmental transmission model
 # Before, fit the ratio of p_P:p_E and incidence
 # 25/75, 50/50, and 75/25
 # For each incidence, hit 25% SAR, 
-SEIR_blend <- function(params, inc, inf, verbose = F) {
+SEIR_blend <- function(params, inf, verbose = F) {
   hh_size <- create_hh()
   
   # Create frame for running the simulation.
@@ -202,7 +253,7 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
                      I = 0,
                      I_count = 0, 
                      R = 0, 
-                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
+                     INC = c(rlnorm(1, meanlog = log(29.8), sdlog = 0.45), rep(0, N - 1)),
                      INF = 0)
   
   # Create frame for storing results.
@@ -279,7 +330,7 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
     if (num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed] <- 1
-      random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
+      random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
       data$INC[new_exposed] <- random_inc
       
       # Remove susceptible status.
