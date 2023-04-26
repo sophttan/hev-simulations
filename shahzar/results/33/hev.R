@@ -217,7 +217,7 @@ for (i in 1:a) {
       
       cat(paste0(beta_H, '/70\t', 
                  format(beta_C, nsmall = 1), '/1.0\t',
-                 format(beta_E, nsmall = 3), '/0.020\t'))
+                 format(beta_E, nsmall = 5, scientific = F), '/0.00050\t'))
         
       t_0 <- Sys.time()
       vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
