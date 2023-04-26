@@ -6,8 +6,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
-message(detectCores())
-num_cores <- 24
+num_cores <- detectCores()
 registerDoParallel(num_cores)
 
 time <- 365 # Number of days.
@@ -77,7 +76,7 @@ SEIR <- function(beta_H, beta_C, inc, inf, verbose = 0) {
   for(t in 1:time) {
     if (verbose) {
       if (t %% 10 == 0) {
-        message(t)
+        cat(t, ' ')
       }
     }
     
@@ -158,7 +157,7 @@ metrics <- function(results) {
   if (idc != 0) {
     # The proportion of household infections is the proportion of infections that
     # were from the household.
-    prp <- mean(results[!is.na(results$TIME), ]$TYPE == 'H')
+    prp <- mean(results[!is.na(results$TIME), ]$TYPE != 'C')
   }
   return(c(idc, prp))
 }

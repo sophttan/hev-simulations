@@ -35,7 +35,7 @@ create_hh <- function() {
   return(hh_size)
 }
 
-SEIR <- function(params, inc, inf, verbose = F) {
+SEIR <- function(params, inf, verbose = F) {
   hh_size <- create_hh()
   
   # Create frame for running the simulation.
@@ -59,7 +59,7 @@ SEIR <- function(params, inc, inf, verbose = F) {
                     I = 0,
                     I_count = 0, 
                     R = 0, 
-                    INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
+                    INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
                     INF = 0)
   
   # Create frame for storing results.
@@ -139,16 +139,12 @@ SEIR <- function(params, inc, inf, verbose = F) {
     if (num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed] <- 1
-      random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
+      random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
       data$INC[new_exposed] <- random_inc
       
       # Remove susceptible status.
       data$S[new_exposed] <- 0
-      
-      # Label community infections with C and household infections with H.
-      results$TYPE[new_inf_C == 1] <- 'C'
-      results$TYPE[new_inf_H == 1] <- 'H'
-      
+     
       # Get number of new infections in each household.
       I_data <- I_data %>%
         select(ID, HH, I, I_H) %>%
@@ -164,7 +160,9 @@ SEIR <- function(params, inc, inf, verbose = F) {
       
       results$I_num <- results$I_num + I_data$new_I_H
         
-      # Label individuals with both a household and community infection with B.
+      # Label infection types
+      results$TYPE[new_inf_C == 1] <- 'C'
+      results$TYPE[new_inf_H == 1] <- 'H'  
       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
     }
     
@@ -175,7 +173,20 @@ SEIR <- function(params, inc, inf, verbose = F) {
   return(results)
 }
 
-SEIR_blend <- function(params, inc, inf, verbose = F) {
+metrics <- function(results) {
+  # Incidence is the proportion of the population that became infected.
+  idc <- mean(!is.na(results$TIME))
+  
+  # If incidence is 0, the SAR is undefined.
+  sar <- NA
+  if (idc != 0) {
+    # The SAR is the average SAR for each individual that was infectious.
+    sar <- mean(results$I_num / results$S_num, na.rm = T)
+  }
+  return(c(idc, sar))
+}
+
+SEIR_blend <- function(params, inf, verbose = F) {
   hh_size <- create_hh()
   
   # Create frame for running the simulation.
@@ -199,7 +210,7 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
                      I = 0,
                      I_count = 0, 
                      R = 0, 
-                     INC = c(round(rnorm(1, inc, 2)), rep(0, N - 1)),
+                     INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
                      INF = 0)
   
   # Create frame for storing results.
@@ -264,15 +275,9 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
     beta_H <- params[1]
     beta_C <- params[2]
     beta_E <- params[3]
-    # Should risk_H be taken over the household size?
     risk_H <- pmin(beta_H * data$S * I_data$I_H / N, 1)
     risk_C <- pmin(beta_C * data$S * I_data$I_C / N, 1)
-    risk_E <- pmin(beta_E * data$S)
-    
-    # What is rr here? It was an input to SEIR_blend.
-    #risk_hh <- d$S*rr*b_hh*summary_data$Ih/4
-    #risk_c <- d$S*b_hh*summary_data$Ic/995
-    #risk_e <- b_e*d$S
+    risk_E <- pmin(beta_E * data$S, 1)
     
     new_inf_H <- rbinom(N, 1, risk_H)
     new_inf_C <- rbinom(N, 1, risk_C)
@@ -282,15 +287,11 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
     if (num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed] <- 1
-      random_inc <- rnorm(num_new_exposed, mean = inc, sd = 2) %>% round()
+      random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
       data$INC[new_exposed] <- random_inc
       
       # Remove susceptible status.
       data$S[new_exposed] <- 0
-      
-      # Label community infections with C and household infections with H.
-      results$TYPE[new_inf_C == 1] <- 'C'
-      results$TYPE[new_inf_H == 1] <- 'H'
       
       # Get number of new infections in each household.
       I_data <- I_data %>%
@@ -307,9 +308,10 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
       
       results$I_num <- results$I_num + I_data$new_I_H
       
-      # Label individuals with both a person-to-person and an environmental
-      # infection with B.
+      # Label infections types.
       new_inf_P <- (new_inf_H == 1) | (new_inf_C == 1)
+      results$TYPE[new_inf_P == 1] <- 'P'
+      results$TYPE[new_inf_E == 1] <- 'E'
       results$TYPE[(new_inf_P == 1) & (new_inf_E == 1)] <- 'B'
     }
     
@@ -320,17 +322,20 @@ SEIR_blend <- function(params, inc, inf, verbose = F) {
   return(results)
 }
 
-metrics <- function(results) {
+metrics_blend <- function(results) {
   # Incidence is the proportion of the population that became infected.
   idc <- mean(!is.na(results$TIME))
   
-  # If incidence is 0, the SAR is undefined.
+  # If incidence is 0, the SAR and proportion of environmental infection are
+  # undefined.
   sar <- NA
+  prp <- NA
   if (idc != 0) {
     # The SAR is the average SAR for each individual that was infectious.
     sar <- mean(results$I_num / results$S_num, na.rm = T)
+    prp <- mean(results[!is.na(results$TIME), ]$TYPE != 'E')
   }
-  return(c(idc, sar))
+  return(c(idc, sar, prp))
 }
 
 ##############################
