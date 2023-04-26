@@ -4,7 +4,8 @@ rm(list=ls())
 gc()
 library(tidyverse)
 library(purrr)
-library(EpiEstim)
+# library(EpiEstim)
+library(here)
 
 setwd(here::here("results"))
 
@@ -12,12 +13,17 @@ setwd(here::here("results"))
 data <- read_csv("separate_models/cumulative_inc_5/simulated_data/environmental.csv")
 
 data
-?wallinga_teunis
 
-probability <- function(inc_prim, inc_sec) {
+# updated Wallinga-Teunis method includes prior for relative probability of 
+# infection within a household to non-household infections
+probability <- function(cases, index, rel_p_hh=1) {
+  inc_prim <- cases$time
+  inc_sec <- cases$time[index]
+  hh_prim <- cases$HH
+  hh_sec <- cases$HH[index]
   # calculate relative likelihood that primary case caused secondary case based on their incidences
   # serial interval is approximate
-  results <- dnorm(inc_sec-inc_prim, mean=31.5, sd=4)
+  results <- (rel_p_house*(hh_prim==hh_sec)+(hh_prim!=hh_sec))*dnorm(inc_sec-inc_prim, mean=31.5, sd=4)
   # if primary case happens after secondary case, set probability to 0
   results[inc_prim>=inc_sec] <- 0
   if(sum(results)==0){return(results)}
@@ -38,9 +44,9 @@ for (j in unique(t$i)) {
   for (k in 1:nrow(data)) {
     # for each case in the simulated outbreak
     # find relative likelihoods of infection from all other cases in the population
-    probs <- probability(data$time, data$time[k])
+    probs <- probability(data, k, 1)
     hh_probs <- probs
-    # set likelihoods to 0 if not within same household - but should this be reweighted instead?
+    # set likelihoods to 0 if not within same household
     hh_probs[data$HH!=data$HH[k]] <- 0
     # R is the sum of the likelihoods for each case
     R <- R + probs
