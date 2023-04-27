@@ -1,5 +1,5 @@
 ---
-title: "environmental transmission calibration"
+title: "Environmental transmission calibration"
 author: "Nila Cibu"
 date: "2023-04-27"
 output: html_document
@@ -52,11 +52,11 @@ $$I_c(t) = -Ne^{-\frac{\beta_e}{N}(t-28)}$$
 
 ```{r calibration}
 g = function(beta){
-  cum_inc = -N*exp(-beta*(t - 28)/N) + N*exp(28*beta/N) - N*p
+  cum_inc = -N*exp(-beta*(t - e_t)/N) + N*exp(e_t*beta/N) - N*p
   abs(cum_inc)
 }
 
-P = c(0.05, 0.1,0.3) # final proportion of the population that is/has been infected
+P = c(0.05, 0.1, 0.3) # final proportion of the population that is/has been infected
 beta = c(0)
 
 

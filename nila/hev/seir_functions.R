@@ -48,6 +48,8 @@ SEIR <- function(params, inf, verbose = F) {
                      INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
                      INF = 0)
   
+  demg <- data %>% select(1:3) # demographics
+  
   # Create frame for storing results.
   # ID: ID of individual.
   # SIZE: size of individual's household.
@@ -156,7 +158,7 @@ SEIR <- function(params, inf, verbose = F) {
     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
   }
-  return(results)
+  return(list(results, demg))
 }
 
 metrics <- function(results) {
@@ -187,6 +189,8 @@ SEIR_environment <- function(b, inf) {
                   R=0, 
                   inc=0, inf=0) # variable number of households (size 3-6), total pop of 1000
   res <- d[,1:3] %>% mutate(Type=NA, time=NA)
+  
+  demg <- d %>% select(1:3) # demographics
   
   for (i in 1:time) {
     recovered <- d$inf>0 & d$Icounter==d$inf
@@ -220,7 +224,7 @@ SEIR_environment <- function(b, inf) {
     d$S[d$E==1] <- 0
   }
   
-  return(res)
+  return(list(res, demg))
 }
 
 
@@ -255,6 +259,8 @@ SEIR_blend <- function(params, inf, verbose = F) {
                      R = 0, 
                      INC = c(rlnorm(1, meanlog = log(29.8), sdlog = 0.45), rep(0, N - 1)),
                      INF = 0)
+  
+  demg <- data %>% select(1:3) # demographics
   
   # Create frame for storing results.
   # ID: ID of individual.
@@ -362,7 +368,7 @@ SEIR_blend <- function(params, inf, verbose = F) {
     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
   }
-  return(results)
+  return(list(results, demg))
 }
 
 metrics_blend <- function(results) {

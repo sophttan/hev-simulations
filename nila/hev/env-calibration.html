@@ -13,7 +13,7 @@
 
 <meta name="date" content="2023-04-27" />
 
-<title>environmental transmission calibration</title>
+<title>Environmental transmission calibration</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -356,7 +356,7 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">environmental transmission calibration</h1>
+<h1 class="title toc-ignore">Environmental transmission calibration</h1>
 <h4 class="author">Nila Cibu</h4>
 <h4 class="date">2023-04-27</h4>
 
@@ -366,8 +366,7 @@ display: none;
 <div id="defining-terms" class="section level2">
 <h2>Defining terms</h2>
 <p>I micked the equations given on <a href="https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SEIR_model">Wikipedia</a>
-without the birth and death rates.</p>
-<p>Let</p>
+without the birth and death rates. Let</p>
 <ul>
 <li><span class="math inline">\(N\)</span> := total size of
 population</li>
@@ -417,7 +416,7 @@ just this term.</p>
 <div id="computing-calibrated-values-for-desired-cumulative-values" class="section level2">
 <h2>Computing calibrated values for desired cumulative values</h2>
 <pre class="r"><code>g = function(beta){
-  cum_inc = -N*exp(-beta*(t - 28)/N) + N*exp(28*beta/N) - N*p
+  cum_inc = -N*exp(-beta*(t - e_t)/N) + N*exp(e_t*beta/N) - N*p
   abs(cum_inc)
 }
 
