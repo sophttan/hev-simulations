@@ -1,0 +1,38 @@
+rm(list = ls())
+gc()
+library(dplyr)
+library(here)
+
+source(here::here("nila/hev/env-calibration/seir_functions.R"))
+
+#########################
+#### SEIR Simulation ####
+#########################
+time <- 365 # Number of days.
+inf <- 7 # Average infectious period length.
+N <- 1000 # Population size.
+
+start <- 0.9466569/N
+incidence<-NULL
+results_data<-NULL
+demg_data<-NULL
+
+sims <- 1000
+for (i in 1:sims) {
+  seir <- SEIR_environment(start, inf)
+  results <- seir[[1]]
+  colnames(results)[colnames(results) == 'time'] <- 'TIME'
+  demg <- seir[[2]]
+  res <- metrics(results)[1]
+  incidence<-c(incidence,res)
+  
+  results <- results %>% filter(!is.na(TIME)) %>% mutate(i=i)
+  results_data <- rbind(results_data, results)
+  
+  demg <- demg %>% mutate(i=i)
+  demg_data <- rbind(demg_data, demg)
+}
+
+write.csv(results_data, here::here("nila/hev/env-calibration/data/env-results-30.csv"))
+write.csv(demg_data, here::here("nila/hev/env-calibration/data/env-demg-30.csv"))
+mean(incidence)
