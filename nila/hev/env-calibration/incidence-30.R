@@ -17,7 +17,7 @@ incidence<-NULL
 results_data<-NULL
 demg_data<-NULL
 
-sims <- 1000
+sims <- 5
 for (i in 1:sims) {
   seir <- SEIR_environment(start, inf)
   results <- seir[[1]]
@@ -32,6 +32,9 @@ for (i in 1:sims) {
   demg <- demg %>% mutate(i=i)
   demg_data <- rbind(demg_data, demg)
 }
+
+# to store only iteration, HH_size, and HH ID
+demg_data = demg_data[!duplicated(demg[3:5]),] %>% select(3:5)
 
 write.csv(results_data, here::here("nila/hev/env-calibration/data/env-results-30.csv"))
 write.csv(demg_data, here::here("nila/hev/env-calibration/data/env-demg-30.csv"))
