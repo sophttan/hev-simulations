@@ -22,6 +22,7 @@ score <- function(fit, target) {
 # The likelihood is calculated by first averaging the incidence and SAR over n
 # simulations with the state parameters. The likelihood is the negative log
 # score of the average incidence and SAR.
+inf <- 7
 likelihood <- function(state, target, n = 300) {
   # If either parameter is nonpositive, do not transition to that state.
   if (any(state <= 0)) {
@@ -29,7 +30,7 @@ likelihood <- function(state, target, n = 300) {
   }
   # Otherwise, find the average incidence and SAR and compute likelihood.
   vals <- foreach (i = 1:n, .combine = c) %dopar% {
-    results <- SEIR(state, inc, inf)
+    results <- SEIR(state, inf)
     metrics(results)
   }
   vals <- matrix(vals, n, byrow = T)
