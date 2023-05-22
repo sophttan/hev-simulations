@@ -1,6 +1,8 @@
 # Functions for running SEIR model of HEV transmission
 # Authors: Sophia Tan, Shahzar Rizvi, Nila Cibu
 
+N <- 1000
+
 create_hh <- function() {
   # Randomly sample household sizes such that total population is 1000 
   # individuals.
