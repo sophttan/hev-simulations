@@ -12,7 +12,6 @@ registerDoParallel(num_cores)
 #### SEIR Simulation ####
 #########################
 time <- 365 # Number of days.
-inc <- 28 # Average incubation period length.
 inf <- 7 # Average infectious period length.
 N <- 1000 # Population size.
 
@@ -356,7 +355,7 @@ likelihood <- function(state, tgt, n = 300) {
   }
   # Otherwise, find the average incidence and SAR and compute likelihood.
   vals <- foreach (i = 1:n, .combine = c) %dopar% {
-    results <- SEIR(state, inc, inf)
+    results <- SEIR(state, inf)
     metrics(results)
   }
   vals <- matrix(vals, n, byrow = T)
@@ -438,7 +437,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
 # Solve for optimal values via MCMC.
 tgt <- c(0.1, 0.25)
 start <- c(53.6136261376403, 0.086607502588279)
-results <- metropolis(start, tgt, num_sim = 1000, num_iter = 1000)
+results <- metropolis(start, tgt, num_sim = 10, num_iter = 10)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]

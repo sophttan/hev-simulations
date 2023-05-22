@@ -4,12 +4,14 @@ library(dplyr)
 library(foreach)
 library(doParallel)
 
+inf <- 7 # Average infectious period length.
+
 source(here::here("analysis/functions/seir_functions.R"))
 source(here::here("analysis/functions/mcmc_functions.R"))
 
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
-num_cores <- 30
+num_cores <- 1
 registerDoParallel(num_cores)
 
 args <- commandArgs(trailingOnly = T) %>% as.numeric()
