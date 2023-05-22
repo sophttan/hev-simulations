@@ -4,6 +4,8 @@ library(dplyr)
 library(foreach)
 library(doParallel)
 
+N <- 1000
+
 source(here::here("analysis/functions/seir_functions.R"))
 source(here::here("analysis/functions/mcmc_functions.R"))
 

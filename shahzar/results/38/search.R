@@ -246,12 +246,13 @@ for (i in 1:d_H) {
       cat('\n')
     }
     cat('\n')
+    saveRDS(idcs, file = 'idcs.rds')
+    saveRDS(sars, file = 'sars.rds')
+    saveRDS(prps, file = 'prps.rds')
+    
+    write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
+    write.table(sars, file = 'sars.txt', row.names = F, col.names = F)
+    write.table(prps, file = 'prps.txt', row.names = F, col.names = F)
   }
-  saveRDS(idcs, file = 'idcs.rds')
-  saveRDS(sars, file = 'sars.rds')
-  saveRDS(prps, file = 'prps.rds')
-  write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
-  write.table(sars, file = 'sars.txt', row.names = F, col.names = F)
-  write.table(prps, file = 'prps.txt', row.names = F, col.names = F)
   message('\n')
 }
