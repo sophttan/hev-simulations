@@ -181,49 +181,94 @@ metrics <- function(results) {
 SEIR_environment <- function(b, inf) {
   hh_size <- create_hh()
   
-  d <- data.frame(No=1:1000, 
-                  HHsize=rep(hh_size, times=hh_size),
-                  HH=rep(1:length(hh_size), times=hh_size), 
-                  S=1, 
-                  E=0, Ecounter=0, 
-                  I=0, Icounter=0, 
-                  R=0, 
-                  inc=0, inf=0) # variable number of households (size 3-6), total pop of 1000
-  res <- d[,1:3] %>% mutate(Type=NA, time=NA)
+  # Create frame for running the simulation.
+  # ID: ID of individual.
+  # SIZE: size of individual's household.
+  # HH: ID of individual's household.
+  # S: susceptibility status.
+  # E: exposed status.
+  # E_count: number of days since exposed.
+  # I: infectious status.
+  # I_count: number of days since infectious.
+  # R: recovered status.
+  # INC: incubation period.
+  # INF: infectious period.
+  data <- data.frame(ID = 1:N,
+                     SIZE = rep(hh_size, times = hh_size),
+                     HH = rep(1:length(hh_size), times = hh_size), 
+                     S = c(0, rep(1, N - 1)), 
+                     E = c(1, rep(0, N - 1)),
+                     E_count = c(1, rep(0, N - 1)), 
+                     I = 0,
+                     I_count = 0, 
+                     R = 0, 
+                     INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
+                     INF = 0)
   
-  for (i in 1:time) {
-    recovered <- d$inf>0 & d$Icounter==d$inf
-    if(sum(recovered,na.rm=T)>0) {
-      d$R[recovered] <- 1
-      d$I[recovered] <- 0
-      d$Icounter[recovered] <- 0 
+  # Create frame for storing results.
+  # ID: ID of individual.
+  # SIZE: size of individual's household.
+  # HH: ID of individual's household.
+  # TYPE: the kind of infection: household (H), community (C), or both (B).
+  # TIME: when the individual became infectious.
+  # S_num: number of susceptible people in individual's household when their 
+  #        infectious period begins.
+  # I_num: number of people in household that this individual infected over 
+  #        their infectious period.
+  results <- data[, 1:3] %>% mutate(TIME = NA)
+  for(t in 1:time) {
+    if (verbose) {
+      if (t %% 10 == 0) {
+        cat(paste0(t, ' '))
+      }
     }
     
-    new_inf <- d$inc>0 &d$Ecounter==d$inc
-    if(sum(new_inf,na.rm=T)>0) {
-      random_inf <- rnorm(sum(new_inf, na.rm=T), mean=inf, sd=1) %>% round()
-      d$I[new_inf] <- 1
-      d$inf[new_inf] <- random_inf
-      d$E[new_inf] <- 0
-      d$Ecounter[new_inf] <- 0 
+    # Anyone who has been infectious for as many days as their infectious period
+    # is now recovered.
+    recovered <- (data$INF > 0) & (data$I_count == data$INF)
+    if(sum(recovered, na.rm = T) > 0) {
+      data$R[recovered] <- 1
+      data$I[recovered] <- 0
+      data$I_count[recovered] <- 0 
     }
     
-    risk <- b*d$S
-    
-    new_exposed <- rbinom(nrow(d), 1, risk)
-    
-    if(sum(new_exposed)>0) {
-      d$E[new_exposed==1] <- 1
-      d$inc[new_exposed==1] <- rlnorm(sum(new_exposed, na.rm=T), meanlog = log(29.8), sdlog = 0.45) %>% round()
-      res <- res %>% mutate(time = ifelse(new_exposed==1, i, time))
+    # Anyone who has been incubating for as many days as their incubation period
+    # is now infectious.
+    new_inf <- (data$INC > 0) & (data$E_count == data$INC)
+    num_new_inf <- sum(new_inf, na.rm = T)
+    if(num_new_inf > 0) {
+      # Change status to newly infectious and add infectious period.
+      data$I[new_inf] <- 1
+      random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
+      data$INF[new_inf] <- random_inf
+      
+      # Remove exposure status and exposure count.
+      data$E[new_inf] <- 0
+      data$E_count[new_inf] <- 0 
+      
+      results$TIME[new_inf] <- t
     }
     
-    d$Ecounter[d$E==1] <- d$Ecounter[d$E==1] + 1
-    d$Icounter[d$I==1] <- d$Icounter[d$I==1] + 1
-    d$S[d$E==1] <- 0
+    beta_E <- params[1]
+    risk_E <- pmin(beta_E * data$S, 1)
+    
+    new_exposed <- rbinom(N, 1, risk_E)
+    num_new_exposed <- sum(new_exposed, na.rm = T)
+    if(num_new_exposed > 0) {
+      # Change status to newly exposed and add incubation period.
+      data$E[new_exposed == 1] <- 1
+      random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
+      data$INC[new_exposed == 1] <- random_inc
+      
+      # Remove susceptible status.
+      data$S[new_exposed == 1] <- 0
+    }
+    
+    # Increment exposure and infectious counters.
+    data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
+    data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
   }
-  
-  return(res)
+  return(results)
 }
 
 
