@@ -2,7 +2,7 @@ rm(list = ls())
 gc()
 library(dplyr)
 library(here)
-
+set.seed(1234)
 source(here::here("nila/hev/env-calibration/seir_functions.R"))
 
 #########################
@@ -17,7 +17,7 @@ incidence<-NULL
 results_data<-NULL
 demg_data<-NULL
 
-sims <- 1000
+sims <- 500
 for (i in 1:sims) {
   seir <- SEIR_environment(start, inf)
   results <- seir[[1]]
@@ -34,7 +34,7 @@ for (i in 1:sims) {
 }
 
 # to store only iteration, HH_size, and HH ID
-demg_data = demg_data[!duplicated(demg[3:5]),] %>% select(3:5)
+demg_data = demg_data[!duplicated(demg[,2:4]),] %>% select(2:4)
 
 write.csv(results_data, here::here("nila/hev/env-calibration/data/env-results-5.csv"))
 write.csv(demg_data, here::here("nila/hev/env-calibration/data/env-demg-5.csv"))
