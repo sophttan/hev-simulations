@@ -257,7 +257,7 @@ SEIR_environment <- function(b, inf) {
     if(num_new_exposed > 0) {
       # Change status to newly exposed and add incubation period.
       data$E[new_exposed == 1] <- 1
-      random_inc <- rnorm(num_new_exposed, mean = log(29.8), sd = 0.45) %>% round()
+      random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
       data$INC[new_exposed == 1] <- random_inc
       
       # Remove susceptible status.
