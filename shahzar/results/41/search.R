@@ -186,7 +186,7 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
-beta_Hs <- seq(47.00, 53.00, 0.02) #31
+beta_Hs <- seq(50.0, 56.0, 0.2) #31
 beta_Cs <- seq(0.00, 0.20, 0.01) #21
 
 d_H <- length(beta_Hs)
@@ -202,7 +202,7 @@ for (i in 1:d_H) {
       beta_C <- beta_Cs[j]
       params <- c(beta_H, beta_C)
       
-      cat(paste0(format(beta_H, nsmall = 2, digits = 4), '/53.00\t', 
+      cat(paste0(format(beta_H, nsmall = 1, digits = 3), '/56.0\t', 
                  format(beta_C, nsmall = 3, digits = 3), '/0.500\t'))
 
       t_0 <- Sys.time()

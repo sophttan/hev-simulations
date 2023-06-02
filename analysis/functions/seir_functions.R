@@ -152,7 +152,7 @@ SEIR <- function(params, inf, verbose = F) {
       # Label infection types.
       results$TYPE[new_inf_C == 1] <- 'C'
       results$TYPE[new_inf_H == 1] <- 'H'
-      results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'B'
+      results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'HC'
     }
     
     # Increment exposure and infectious counters.
@@ -262,6 +262,9 @@ SEIR_environment <- function(b, inf) {
       
       # Remove susceptible status.
       data$S[new_exposed == 1] <- 0
+        
+      # Label infection types.
+      results$TYPE[new_exposed == 1] <- 'E'
     }
     
     # Increment exposure and infectious counters.
@@ -400,10 +403,13 @@ SEIR_blend <- function(params, inf, verbose = F) {
       results$I_num <- results$I_num + I_data$new_I_H
       
       # Label infections types.
-      new_inf_P <- (new_inf_H == 1) | (new_inf_C == 1)
-      results$TYPE[new_inf_P == 1] <- 'P'
+      results$TYPE[new_inf_H == 1] <- 'H'
+      results$TYPE[new_inf_C == 1] <- 'C'
       results$TYPE[new_inf_E == 1] <- 'E'
-      results$TYPE[(new_inf_P == 1) & (new_inf_E == 1)] <- 'B'
+      results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'HC'
+      results$TYPE[(new_inf_H == 1) & (new_inf_E == 1)] <- 'HE'
+      results$TYPE[(new_inf_C == 1) & (new_inf_E == 1)] <- 'CE'
+      results$TYPE[(new_inf_H == 1) & (new_inf_C == 1) & (new_inf_E == 1)] <- 'HCE'
     }
     
     # Increment exposure and infectious counters.
@@ -424,6 +430,7 @@ metrics_blend <- function(results) {
   if (idc != 0) {
     # The SAR is the average SAR for each individual that was infectious.
     sar <- mean(results$I_num / results$S_num, na.rm = T)
+    # (Maybe this needs to be fixed to not include the one TYPE = 0 case)
     prp <- mean(results[!is.na(results$TIME), ]$TYPE != 'E')
   }
   return(c(idc, sar, prp))
