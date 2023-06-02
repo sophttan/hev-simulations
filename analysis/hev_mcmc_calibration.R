@@ -11,7 +11,7 @@ source(here::here("analysis/functions/mcmc_functions.R"))
 
 # Set up the number of cores used for parallelization.
 # Use detectCores() to find out how many cores are available.
-num_cores <- 1
+num_cores <- 2
 registerDoParallel(num_cores)
 
 args <- commandArgs(trailingOnly = T) %>% as.numeric()

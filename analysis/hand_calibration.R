@@ -1,7 +1,8 @@
 rm(list = ls())
 gc()
 library(dplyr)
-
+library(here)
+set.seed(1234)
 source(here::here("analysis/functions/seir_functions.R"))
 
 #########################
@@ -11,15 +12,15 @@ time <- 365 # Number of days.
 inf <- 7 # Average infectious period length.
 N <- 1000 # Population size.
 
-start <- c(53.8, 0.1)
+start <- c(32.5,	0.075,	0.0005) # for 10% idc and 67.2% prp
 incidence<-NULL
 sar<-NULL
 results_data<-NULL
 
-sims <- 100
+sims <- 500
 for (i in 1:sims) {
-  results <- SEIR(start, inf)
-  res <- metrics(results)
+  results <- SEIR_blend(start, inf)
+  res <- metrics_blend(results)
   incidence<-c(incidence,res[1])
   sar<-c(sar,res[2])
   
@@ -27,6 +28,6 @@ for (i in 1:sims) {
   results_data <- rbind(results_data, results)
 }
 
-results_data
+write.csv(results_data, file = here("nila", "hev", "blend-sims", "idc-10-prp-67.csv"))
 mean(incidence)
 mean(sar)

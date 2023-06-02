@@ -1,4 +1,4 @@
-rm(list=ls())
+# rm(list=ls())
 gc()
 library(tidyverse)
 library(purrr)

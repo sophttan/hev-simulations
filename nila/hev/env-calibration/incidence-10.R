@@ -2,7 +2,7 @@ rm(list = ls())
 gc()
 library(dplyr)
 library(here)
-
+set.seed(1234)
 source(here::here("nila/hev/env-calibration/seir_functions.R"))
 
 #########################
@@ -17,7 +17,7 @@ incidence<-NULL
 results_data<-NULL
 demg_data<-NULL
 
-sims <- 1000
+sims <- 500
 for (i in 1:sims) {
   seir <- SEIR_environment(start, inf)
   results <- seir[[1]]
