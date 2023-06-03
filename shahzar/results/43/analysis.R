@@ -243,7 +243,32 @@ values <- function(results) {
   return(c(prp_true(results), method_HH(results), method_R0(results)))
 }
 
+# 0% Person-to-Person Transmission
+# 5% Cumulative Incidence
+
+# 10% Cumulative Incidence
+
+# 30% Cumulative Incidence
+
+# 25% Person-to-Person Transmission
+# 5% Cumulative Incidence
+
+# 10% Cumulative Incidence
+
+# 30% Cumulative Incidence
+
+# 75% Person-to-Person Transmission
+# 5% Cumulative Incidence
+
+# 10% Cumulative Incidence
+
+# 30% Cumulative Incidence
 # 100% Person-to-Person Transmission
+# 5% Cumulative Incidence
+
+# 10% Cumulative Incidence
+
+# 30% Cumulative Incidence
 beta_H <- 51
 beta_C <- 0.140
 params <- c(beta_H, beta_C)

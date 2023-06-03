@@ -175,10 +175,8 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
-
-
 # simple environmental transmission
-SEIR_environment <- function(b, inf) {
+SEIR_environment <- function(params, inf, verbose = F) {
   hh_size <- create_hh()
   
   # Create frame for running the simulation.
@@ -215,7 +213,9 @@ SEIR_environment <- function(b, inf) {
   #        infectious period begins.
   # I_num: number of people in household that this individual infected over 
   #        their infectious period.
-  results <- data[, 1:3] %>% mutate(TIME = NA)
+  results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
+  results$TYPE[1] <- '0'
+    
   for(t in 1:time) {
     if (verbose) {
       if (t %% 10 == 0) {
