@@ -188,9 +188,9 @@ method_HH <- function(results) {
     mutate(day_limits = list(TIME)) %>%
     ungroup() %>%
     rowwise() %>%
-    mutate(IS_H = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7))
+    mutate(IS_H = any((TIME - unlist(day_limits)) < 45 & (TIME - unlist(day_limits)) > 7))
   
-  return(sum(f$IS_H) / nrow(f))
+  return(mean(f$IS_H))
 }
 
 probability <- function(cases, index, rel_p_hh=1) {
@@ -238,7 +238,7 @@ beta_C <- 0.005
 beta_E <- 0.00010
 params <- c(beta_H, beta_C, beta_E)
 
-n_sims <- 500
+n_sims <- 1000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   results <- SEIR(params, inf)
   write.csv(results, file = paste0('5/', i, '.csv'))
@@ -246,7 +246,7 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '5/vals.rds')
-write.csv(vals, file = '5/vals.csv')
+write.table(vals, file = '5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -255,7 +255,7 @@ beta_C <- 0.005
 beta_E <- 0.00015
 params <- c(beta_H, beta_C, beta_E)
 
-n_sims <- 500
+n_sims <- 1000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   results <- SEIR(params, inf)
   write.csv(results, file = paste0('10/', i, '.csv'))
@@ -263,7 +263,7 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '10/vals.rds')
-write.csv(vals, file = '10/vals.csv')
+write.table(vals, file = '10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -272,7 +272,7 @@ beta_C <- 0.010
 beta_E <- 0.00055
 params <- c(beta_H, beta_C, beta_E)
 
-n_sims <- 500
+n_sims <- 1000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   results <- SEIR(params, inf)
   write.csv(results, file = paste0('30/', i, '.csv'))
@@ -280,4 +280,4 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '30/vals.rds')
-write.csv(vals, file = '30/vals.csv')
+write.table(vals, file = '30/vals.txt', row.names = F, col.names = F)

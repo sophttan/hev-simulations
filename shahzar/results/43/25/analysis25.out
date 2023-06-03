@@ -224,9 +224,9 @@ Loading required package: parallel
 +     mutate(day_limits = list(TIME)) %>%
 +     ungroup() %>%
 +     rowwise() %>%
-+     mutate(IS_H = any((time - unlist(day_limits)) < 45 & (time - unlist(day_limits)) > 7))
++     mutate(IS_H = any((TIME - unlist(day_limits)) < 45 & (TIME - unlist(day_limits)) > 7))
 +   
-+   return(sum(f$IS_H) / nrow(f))
++   return(mean(f$IS_H))
 + }
 > 
 > probability <- function(cases, index, rel_p_hh=1) {
@@ -274,7 +274,7 @@ Loading required package: parallel
 > beta_E <- 0.00010
 > params <- c(beta_H, beta_C, beta_E)
 > 
-> n_sims <- 500
+> n_sims <- 1000
 > vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 +   results <- SEIR(params, inf)
 +   write.csv(results, file = paste0('5/', i, '.csv'))
@@ -282,7 +282,7 @@ Loading required package: parallel
 + }
 > vals <- matrix(vals, n_sims, byrow = T)
 > saveRDS(vals, file = '5/vals.rds')
-> write.csv(vals, file = '5/vals.csv')
+> write.table(vals, file = '5/vals.txt', row.names = F, col.names = F)
 > 
 > 
 > # 10% Cumulative Incidence
@@ -291,7 +291,7 @@ Loading required package: parallel
 > beta_E <- 0.00025
 > params <- c(beta_H, beta_C, beta_E)
 > 
-> n_sims <- 500
+> n_sims <- 1000
 > vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 +   results <- SEIR(params, inf)
 +   write.csv(results, file = paste0('10/', i, '.csv'))
@@ -299,7 +299,7 @@ Loading required package: parallel
 + }
 > vals <- matrix(vals, n_sims, byrow = T)
 > saveRDS(vals, file = '10/vals.rds')
-> write.csv(vals, file = '10/vals.csv')
+> write.table(vals, file = '10/vals.txt', row.names = F, col.names = F)
 > 
 > 
 > # 30% Cumulative Incidence
@@ -308,7 +308,7 @@ Loading required package: parallel
 > beta_E <- 0.00080
 > params <- c(beta_H, beta_C, beta_E)
 > 
-> n_sims <- 500
+> n_sims <- 1000
 > vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 +   results <- SEIR(params, inf)
 +   write.csv(results, file = paste0('30/', i, '.csv'))
@@ -316,8 +316,8 @@ Loading required package: parallel
 + }
 > vals <- matrix(vals, n_sims, byrow = T)
 > saveRDS(vals, file = '30/vals.rds')
-> write.csv(vals, file = '30/vals.csv')
+> write.table(vals, file = '30/vals.txt', row.names = F, col.names = F)
 > 
 > proc.time()
      user    system   elapsed 
-19054.955   310.014   647.254 
+38106.912   677.784  1339.993 
