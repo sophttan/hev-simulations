@@ -33,9 +33,9 @@ SEIR <- function(params, inf, verbose = F) {
   # HH: ID of individual's household.
   # S: susceptibility status.
   # E: exposed status.
-  # E_count: number of days since exposed.
+  # E_COUNT: number of days since exposed.
   # I: infectious status.
-  # I_count: number of days since infectious.
+  # I_COUNT: number of days since infectious.
   # R: recovered status.
   # INC: incubation period.
   # INF: infectious period.
@@ -44,9 +44,9 @@ SEIR <- function(params, inf, verbose = F) {
                      HH = rep(1:length(hh_size), times = hh_size), 
                      S = c(0, rep(1, N - 1)), 
                      E = c(1, rep(0, N - 1)),
-                     E_count = c(1, rep(0, N - 1)), 
+                     E_COUNT = c(1, rep(0, N - 1)), 
                      I = 0,
-                     I_count = 0, 
+                     I_COUNT = 0, 
                      R = 0, 
                      INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
                      INF = 0)
@@ -57,11 +57,11 @@ SEIR <- function(params, inf, verbose = F) {
   # HH: ID of individual's household.
   # TYPE: the kind of infection: household (H), community (C), or both (B).
   # TIME: when the individual became infectious.
-  # S_num: number of susceptible people in individual's household when their 
+  # S_NUM: number of susceptible people in individual's household when their 
   #        infectious period begins.
-  # I_num: number of people in household that this individual infected over 
+  # I_NUM: number of people in household that this individual infected over 
   #        their infectious period.
-  results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
+  results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_NUM = NA, I_NUM = 0)
   results$TYPE[1] <- '0'
   
   for(t in 1:time) {
@@ -73,16 +73,16 @@ SEIR <- function(params, inf, verbose = F) {
     
     # Anyone who has been infectious for as many days as their infectious period
     # is now recovered.
-    recovered <- (data$INF > 0) & (data$I_count == data$INF)
+    recovered <- (data$INF > 0) & (data$I_COUNT == data$INF)
     if(sum(recovered, na.rm = T) > 0) {
       data$R[recovered] <- 1
       data$I[recovered] <- 0
-      data$I_count[recovered] <- 0 
+      data$I_COUNT[recovered] <- 0 
     }
     
     # Anyone who has been incubating for as many days as their incubation period
     # is now infectious.
-    new_inf <- (data$INC > 0) & (data$E_count == data$INC)
+    new_inf <- (data$INC > 0) & (data$E_COUNT == data$INC)
     num_new_inf <- sum(new_inf, na.rm = T)
     if(num_new_inf > 0) {
       # Change status to newly infectious and add infectious period.
@@ -92,7 +92,7 @@ SEIR <- function(params, inf, verbose = F) {
       
       # Remove exposure status and exposure count.
       data$E[new_inf] <- 0
-      data$E_count[new_inf] <- 0 
+      data$E_COUNT[new_inf] <- 0 
       
       # Record time at which infectious period starts.
       results$TIME[new_inf] <- t
@@ -102,7 +102,7 @@ SEIR <- function(params, inf, verbose = F) {
       S_data <- data %>% group_by(HH) %>% 
         mutate(S_tot = sum(S)) %>% 
         select(HH, S_tot)
-      results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
+      results$S_NUM[new_inf == 1] <- S_data$S_tot[new_inf == 1]
     }
     
     # I_H is the number of infections inside each household.
@@ -147,7 +147,7 @@ SEIR <- function(params, inf, verbose = F) {
         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
                                 sum(new_I_H), 0))
       
-      results$I_num <- results$I_num + I_data$new_I_H
+      results$I_NUM <- results$I_NUM + I_data$new_I_H
       
       # Label infection types.
       results$TYPE[new_inf_C == 1] <- 'C'
@@ -156,8 +156,8 @@ SEIR <- function(params, inf, verbose = F) {
     }
     
     # Increment exposure and infectious counters.
-    data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
-    data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
+    data$E_COUNT[data$E == 1] <- data$E_COUNT[data$E == 1] + 1
+    data$I_COUNT[data$I == 1] <- data$I_COUNT[data$I == 1] + 1
   }
   return(results)
 }
