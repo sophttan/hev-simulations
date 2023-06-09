@@ -7,7 +7,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 message(detectCores())
-num_cores <- 32
+num_cores <- 64
 registerDoParallel(num_cores)
 
 #########################
@@ -218,7 +218,7 @@ likelihood <- function(state, tgt, n = 300) {
 }
 
 # Proposal function
-q <- function(state, sds = c(0.01, 0.001, 0.000001)) {
+q <- function(state, sds = c(0.1, 0.001, 0.00001)) {
   # Sample from a multivariate normal distributions centered at the current 
   # state. The SDs roughly correspond to the step-size of the chain for each 
   # parameter.
@@ -290,9 +290,9 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
 }
 
 # Solve for optimal values via MCMC.
-tgt <- c(0.05, 0.08, 0.25)
-start <- c(12.4794240359735, 0.0381587642032778, 0.0000789400065449056)
-results <- metropolis(start, tgt, num_sim = 1000, num_iter = 1000)
+tgt <- c(0.05, 0.08, 0.75)
+start <- c(42, 0.030, 0.00005)
+results <- metropolis(start, tgt, num_sim = 300, num_iter = 1000)
 path <- results[[1]]
 liks <- results[[2]]
 best <- results[[3]]

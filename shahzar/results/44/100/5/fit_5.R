@@ -7,7 +7,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 message(detectCores())
-num_cores <- 32
+num_cores <- 64
 registerDoParallel(num_cores)
 
 #########################
@@ -288,7 +288,7 @@ metropolis <- function(start, tgt, num_sim, num_iter) {
 
 # Solve for optimal values via MCMC.
 tgt <- c(0.05, 0.25)
-start <- c(12.4794240359735, 0.0381587642032778)
+start <- c(50, 0.080)
 results <- metropolis(start, tgt, num_sim = 300, num_iter = 1000)
 path <- results[[1]]
 liks <- results[[2]]
