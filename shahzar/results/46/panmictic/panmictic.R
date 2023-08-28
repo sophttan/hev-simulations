@@ -165,9 +165,9 @@ for (i in 1:d_E) {
              format(t_1 - t_0, nsmall = 2, digits = 4), ')\t'))
       
   vals <- matrix(vals, reps, byrow = T)
-  idcs[i] <- vals[, 1]
+  idcs[i, ] <- vals[, 1]
         
-  cat(paste0(format(round(mean(vals[, 1]), 3), nsmall = 3), '\n'))
+  cat(paste0(format(round(mean(idcs[i, ]), 3), nsmall = 3), '\n'))
     
   saveRDS(idcs, file = 'idcs.rds')
   write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)

@@ -1,0 +1,529 @@
+
+R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284765 15.3     664565 35.5   464468 24.9
+Vcells 490458  3.8    8388608 64.0  1837328 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(readr)
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> message(detectCores())
+24
+> num_cores <- detectCores()
+> registerDoParallel(num_cores)
+> 
+> #########################
+> #### SEIR Simulation ####
+> #########################
+> time <- 365 # Number of days.
+> inf <- 7 # Average infectious period length.
+> N <- 1000 # Population size.
+> 
+> create_hh <- function() {
++   # Randomly sample household sizes such that total population is 1000 
++   # individuals.
++   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
++   
++   # Keep households such that total population is < 1000.
++   hh_size <- hh_size[which(cumsum(hh_size) < N)]
++   
++   leftover <- N - sum(hh_size)
++   if (leftover < 3) {
++     hh <- 1:length(hh_size)
++     sampled <- sample(hh[hh_size < 6], leftover)
++     hh_size[sampled] <- hh_size[sampled] + 1
++   } else {
++     hh_size <- c(hh_size, leftover)
++   }
++   return(hh_size)
++ }
+> 
+> SEIR <- function(params, inf = 7, verbose = F) {
++   hh_size <- create_hh()
++   
++   # Create frame for running the simulation.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # S: susceptibility status.
++   # E: exposed status.
++   # E_count: number of days since exposed.
++   # I: infectious status.
++   # I_count: number of days since infectious.
++   # R: recovered status.
++   # INC: incubation period.
++   # INF: infectious period.
++   data <- data.frame(ID = 1:N,
++                      SIZE = rep(hh_size, times = hh_size),
++                      HH = rep(1:length(hh_size), times = hh_size), 
++                      S = c(0, rep(1, N - 1)), 
++                      E = c(1, rep(0, N - 1)),
++                      E_count = c(1, rep(0, N - 1)), 
++                      I = 0,
++                      I_count = 0, 
++                      R = 0, 
++                      INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
++                      INF = 0)
++   
++   # Create frame for storing results.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # TYPE: the kind of infection: household (H), community (C), or both (B).
++   # TIME: when the individual became infectious.
++   # S_num: number of susceptible people in individual's household when their 
++   #        infectious period begins.
++   # I_num: number of people in household that this individual infected over 
++   #        their infectious period.
++   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
++   results$TYPE[1] <- '0'
++     
++   for(t in 1:time) {
++     if (verbose) {
++       if (t %% 10 == 0) {
++         cat(paste0(t, ' '))
++       }
++     }
++     
++     # Anyone who has been infectious for as many days as their infectious period
++     # is now recovered.
++     recovered <- (data$INF > 0) & (data$I_count == data$INF)
++     if(sum(recovered, na.rm = T) > 0) {
++       data$R[recovered] <- 1
++       data$I[recovered] <- 0
++       data$I_count[recovered] <- 0 
++     }
++     
++     # Anyone who has been incubating for as many days as their incubation period
++     # is now infectious.
++     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
++     num_new_inf <- sum(new_inf, na.rm = T)
++     if(num_new_inf > 0) {
++       # Change status to newly infectious and add infectious period.
++       data$I[new_inf] <- 1
++       random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
++       data$INF[new_inf] <- random_inf
++       
++       # Remove exposure status and exposure count.
++       data$E[new_inf] <- 0
++       data$E_count[new_inf] <- 0 
++       
++       # Record the time at which the infectious period starts.  
++       results$TIME[new_inf] <- t
++         
++       # Save the number of susceptible people in each infectious individual's 
++       # household.
++       S_data <- data %>% group_by(HH) %>% 
++         mutate(S_tot = sum(S)) %>% 
++         select(HH, S_tot)
++       results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
++     }
++       
++     # I_H is the number of infections inside each household.
++     I_data <- data %>% group_by(HH) %>% 
++       mutate(I_H = sum(I)) %>% 
++       ungroup()
++     
++     # Risk is growing logistically, with rate determined by params[2]
++     beta_E <- params[1]
++     gamma <- params[2]
++     risk_E <- pmin(beta_E * data$S / (1 + exp(-gamma * t)), 1)
++     
++     new_exposed <- rbinom(N, 1, risk_E)
++     num_new_exposed <- sum(new_exposed, na.rm = T)
++     if(num_new_exposed > 0) {
++       # Change status to newly exposed and add incubation period.
++       data$E[new_exposed == 1] <- 1
++       random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
++       data$INC[new_exposed == 1] <- random_inc
++       
++       # Remove susceptible status.
++       data$S[new_exposed == 1] <- 0
++       
++       #if (t > 100) {
++       #  return(list(data, new_exposed))
++       #}
++         
++       # Get number of new infections in each household.
++       I_data <- I_data %>%
++         select(ID, HH, I, I_H) %>%
++         mutate(new_I = new_exposed) %>%
++         group_by(HH) %>%
++         # Find households with at least 1 currently infectious individual. If 
++         # exactly 1 infectious individual in household, assign all new 
++         # exposures to that individual. If there are multiple infectious 
++         # individuals, assign all infections to the infectious individual with 
++         # the first ID.
++         mutate(new_I = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I), 0))
++ 
++       results$I_num <- results$I_num + I_data$new_I
++         
++       # Label infection types.
++       results$TYPE[new_exposed == 1] <- 'E'
++     }
++     
++     # Increment exposure and infectious counters.
++     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
++     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
++   }
++   return(results)
++ }
+> 
+> metrics <- function(results) {
++   # Incidence is the proportion of the population that became infected.
++   idc <- mean(!is.na(results$TIME))
++     
++   # If incidence is 0, the pseudo-SAR is undefined.
++   par <- NA
++   if (idc != 0) {
++     # The PAR is the average PAR for each individual that was infectious.
++     par <- mean(results$I_num / results$S_num, na.rm = T)
++   }
++   return(c(idc, par))
++ }
+> 
+> beta_Es <- seq(0.001, 0.01, 0.001) # 11
+> gammas <- seq(0, 1, 0.1) # 11
+> 
+> d_E <- length(beta_Es)
+> d_G <- length(gammas)
+> 
+> reps <- 20
+> idcs <- array(rep(NA, d_E * d_G * reps), dim = c(d_E, d_G, reps))
+> pars <- array(rep(NA, d_E * d_G * reps), dim = c(d_E, d_G, reps))
+> t_tot <- 0
+> for (i in 1:d_E) {
++     for (j in 1:d_G) {
++       beta_E <- beta_Es[i]
++       gamma <- gammas[j]
++       params <- c(beta_E, gamma)
++       
++       cat(paste0(format(beta_E, nsmall = 4, scientific = F), '/0.0100\t', 
++                  format(gamma, nsmall = 3, digits = 3), '/0.100\t'))
++ 
++       t_0 <- Sys.time()
++       vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
++         results <- SEIR(params) 
++         metrics(results)
++       }
++       t_1 <- Sys.time()
++       t_tot <- t_tot + (t_1 - t_0)
++ 
++       cat(paste0(format(t_tot, nsmall = 2, digits = 4), '\t(', 
++                  format(t_1 - t_0, nsmall = 2, digits = 4), ')\t'))
++ 
++       vals <- matrix(vals, reps, byrow = T)
++       idcs[i, j, ] <- vals[, 1]
++       pars[i, j, ] <- vals[, 2]
++ 
++       cat(paste0(format(round(mean(vals[, 1]), 3), nsmall = 3), '\t',
++                  format(round(mean(vals[, 2]), 3), nsmall = 3), '\n'))
++       
++       saveRDS(idcs, file = 'idcs.rds')
++       write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
++       saveRDS(pars, file = 'pars.rds')
++       write.table(pars, file = 'pars.txt', row.names = F, col.names = F)
++     }
++   message('\n')
++ }
+0.0010/0.0100	0.000/0.100	9.525 secs	(9.525 secs)	0.151	0.003
+0.0010/0.0100	0.100/0.100	22.25 secs	(12.72 secs)	0.276	0.007
+0.0010/0.0100	0.200/0.100	35.21 secs	(12.96 secs)	0.276	0.006
+0.0010/0.0100	0.300/0.100	48.47 secs	(13.27 secs)	0.286	0.007
+0.0010/0.0100	0.400/0.100	61.51 secs	(13.04 secs)	0.285	0.006
+0.0010/0.0100	0.500/0.100	74.48 secs	(12.97 secs)	0.285	0.007
+0.0010/0.0100	0.600/0.100	87.49 secs	(13.01 secs)	0.284	0.007
+0.0010/0.0100	0.700/0.100	100.32 secs	(12.83 secs)	0.280	0.007
+0.0010/0.0100	0.800/0.100	113.71 secs	(13.38 secs)	0.285	0.005
+0.0010/0.0100	0.900/0.100	126.83 secs	(13.12 secs)	0.286	0.007
+0.0010/0.0100	1.000/0.100	139.72 secs	(12.90 secs)	0.279	0.006
+
+
+0.0020/0.0100	0.000/0.100	153.03 secs	(13.31 secs)	0.278	0.006
+0.0020/0.0100	0.100/0.100	169.14 secs	(16.11 secs)	0.477	0.014
+0.0020/0.0100	0.200/0.100	186.46 secs	(17.32 secs)	0.482	0.014
+0.0020/0.0100	0.300/0.100	203.02 secs	(16.56 secs)	0.480	0.013
+0.0020/0.0100	0.400/0.100	219.52 secs	(16.50 secs)	0.487	0.013
+0.0020/0.0100	0.500/0.100	235.78 secs	(16.26 secs)	0.479	0.015
+0.0020/0.0100	0.600/0.100	252.17 secs	(16.39 secs)	0.484	0.014
+0.0020/0.0100	0.700/0.100	268.31 secs	(16.14 secs)	0.483	0.014
+0.0020/0.0100	0.800/0.100	284.68 secs	(16.37 secs)	0.486	0.013
+0.0020/0.0100	0.900/0.100	301.07 secs	(16.39 secs)	0.487	0.013
+0.0020/0.0100	1.000/0.100	318.11 secs	(17.04 secs)	0.479	0.013
+
+
+0.0030/0.0100	0.000/0.100	333.57 secs	(15.47 secs)	0.394	0.010
+0.0030/0.0100	0.100/0.100	351.06 secs	(17.49 secs)	0.620	0.019
+0.0030/0.0100	0.200/0.100	368.43 secs	(17.37 secs)	0.624	0.019
+0.0030/0.0100	0.300/0.100	385.61 secs	(17.17 secs)	0.623	0.019
+0.0030/0.0100	0.400/0.100	402.83 secs	(17.22 secs)	0.631	0.021
+0.0030/0.0100	0.500/0.100	420.01 secs	(17.18 secs)	0.634	0.020
+0.0030/0.0100	0.600/0.100	437.61 secs	(17.60 secs)	0.626	0.020
+0.0030/0.0100	0.700/0.100	455.22 secs	(17.61 secs)	0.627	0.021
+0.0030/0.0100	0.800/0.100	472.26 secs	(17.04 secs)	0.634	0.020
+0.0030/0.0100	0.900/0.100	489.30 secs	(17.03 secs)	0.627	0.020
+0.0030/0.0100	1.000/0.100	506.57 secs	(17.27 secs)	0.633	0.020
+
+
+0.0040/0.0100	0.000/0.100	522.50 secs	(15.93 secs)	0.482	0.014
+0.0040/0.0100	0.100/0.100	540.08 secs	(17.58 secs)	0.733	0.026
+0.0040/0.0100	0.200/0.100	557.65 secs	(17.57 secs)	0.730	0.027
+0.0040/0.0100	0.300/0.100	575.41 secs	(17.75 secs)	0.734	0.029
+0.0040/0.0100	0.400/0.100	593.24 secs	(17.83 secs)	0.740	0.028
+0.0040/0.0100	0.500/0.100	610.89 secs	(17.65 secs)	0.737	0.026
+0.0040/0.0100	0.600/0.100	628.52 secs	(17.63 secs)	0.730	0.026
+0.0040/0.0100	0.700/0.100	646.35 secs	(17.83 secs)	0.738	0.027
+0.0040/0.0100	0.800/0.100	664.19 secs	(17.84 secs)	0.733	0.026
+0.0040/0.0100	0.900/0.100	681.57 secs	(17.38 secs)	0.734	0.026
+0.0040/0.0100	1.000/0.100	699.40 secs	(17.83 secs)	0.733	0.026
+
+
+0.0050/0.0100	0.000/0.100	717.00 secs	(17.59 secs)	0.562	0.018
+0.0050/0.0100	0.100/0.100	735.03 secs	(18.03 secs)	0.806	0.035
+0.0050/0.0100	0.200/0.100	752.49 secs	(17.46 secs)	0.809	0.033
+0.0050/0.0100	0.300/0.100	770.33 secs	(17.84 secs)	0.806	0.033
+0.0050/0.0100	0.400/0.100	788.20 secs	(17.87 secs)	0.806	0.034
+0.0050/0.0100	0.500/0.100	805.91 secs	(17.70 secs)	0.807	0.033
+0.0050/0.0100	0.600/0.100	823.82 secs	(17.91 secs)	0.807	0.033
+0.0050/0.0100	0.700/0.100	841.51 secs	(17.69 secs)	0.808	0.034
+0.0050/0.0100	0.800/0.100	859.61 secs	(18.10 secs)	0.810	0.032
+0.0050/0.0100	0.900/0.100	877.36 secs	(17.74 secs)	0.810	0.034
+0.0050/0.0100	1.000/0.100	894.93 secs	(17.57 secs)	0.812	0.033
+
+
+0.0060/0.0100	0.000/0.100	911.99 secs	(17.06 secs)	0.636	0.020
+0.0060/0.0100	0.100/0.100	929.53 secs	(17.54 secs)	0.856	0.036
+0.0060/0.0100	0.200/0.100	947.40 secs	(17.87 secs)	0.861	0.041
+0.0060/0.0100	0.300/0.100	965.02 secs	(17.62 secs)	0.861	0.038
+0.0060/0.0100	0.400/0.100	982.67 secs	(17.65 secs)	0.863	0.039
+0.0060/0.0100	0.500/0.100	1000.22 secs	(17.55 secs)	0.864	0.042
+0.0060/0.0100	0.600/0.100	1018.02 secs	(17.80 secs)	0.866	0.039
+0.0060/0.0100	0.700/0.100	1035.32 secs	(17.30 secs)	0.864	0.041
+0.0060/0.0100	0.800/0.100	1052.79 secs	(17.46 secs)	0.859	0.041
+0.0060/0.0100	0.900/0.100	1070.29 secs	(17.51 secs)	0.862	0.038
+0.0060/0.0100	1.000/0.100	1087.71 secs	(17.41 secs)	0.863	0.039
+
+
+0.0070/0.0100	0.000/0.100	1105.45 secs	(17.74 secs)	0.682	0.024
+0.0070/0.0100	0.100/0.100	1122.96 secs	(17.51 secs)	0.895	0.043
+0.0070/0.0100	0.200/0.100	1140.19 secs	(17.23 secs)	0.902	0.046
+0.0070/0.0100	0.300/0.100	1157.63 secs	(17.44 secs)	0.903	0.047
+0.0070/0.0100	0.400/0.100	1175.36 secs	(17.72 secs)	0.905	0.048
+0.0070/0.0100	0.500/0.100	1192.76 secs	(17.40 secs)	0.902	0.046
+0.0070/0.0100	0.600/0.100	1210.24 secs	(17.48 secs)	0.903	0.046
+0.0070/0.0100	0.700/0.100	1227.56 secs	(17.32 secs)	0.905	0.047
+0.0070/0.0100	0.800/0.100	1244.66 secs	(17.10 secs)	0.900	0.044
+0.0070/0.0100	0.900/0.100	1261.81 secs	(17.15 secs)	0.903	0.045
+0.0070/0.0100	1.000/0.100	1279.60 secs	(17.79 secs)	0.901	0.046
+
+
+0.0080/0.0100	0.000/0.100	1297.62 secs	(18.02 secs)	0.738	0.026
+0.0080/0.0100	0.100/0.100	1314.60 secs	(16.97 secs)	0.928	0.052
+0.0080/0.0100	0.200/0.100	1331.37 secs	(16.77 secs)	0.930	0.055
+0.0080/0.0100	0.300/0.100	1348.02 secs	(16.65 secs)	0.927	0.051
+0.0080/0.0100	0.400/0.100	1365.32 secs	(17.30 secs)	0.926	0.049
+0.0080/0.0100	0.500/0.100	1382.18 secs	(16.86 secs)	0.930	0.050
+0.0080/0.0100	0.600/0.100	1399.26 secs	(17.08 secs)	0.928	0.052
+0.0080/0.0100	0.700/0.100	1416.10 secs	(16.84 secs)	0.930	0.054
+0.0080/0.0100	0.800/0.100	1433.18 secs	(17.07 secs)	0.930	0.053
+0.0080/0.0100	0.900/0.100	1450.18 secs	(17.00 secs)	0.929	0.052
+0.0080/0.0100	1.000/0.100	1467.20 secs	(17.02 secs)	0.932	0.054
+
+
+0.0090/0.0100	0.000/0.100	1484.93 secs	(17.74 secs)	0.777	0.032
+0.0090/0.0100	0.100/0.100	1501.68 secs	(16.74 secs)	0.946	0.056
+0.0090/0.0100	0.200/0.100	1518.36 secs	(16.68 secs)	0.947	0.060
+0.0090/0.0100	0.300/0.100	1534.61 secs	(16.25 secs)	0.949	0.060
+0.0090/0.0100	0.400/0.100	1551.19 secs	(16.58 secs)	0.950	0.058
+0.0090/0.0100	0.500/0.100	1567.62 secs	(16.43 secs)	0.948	0.058
+0.0090/0.0100	0.600/0.100	1583.84 secs	(16.22 secs)	0.948	0.059
+0.0090/0.0100	0.700/0.100	1600.30 secs	(16.46 secs)	0.949	0.060
+0.0090/0.0100	0.800/0.100	1616.86 secs	(16.56 secs)	0.950	0.060
+0.0090/0.0100	0.900/0.100	1633.45 secs	(16.58 secs)	0.951	0.057
+0.0090/0.0100	1.000/0.100	1650.30 secs	(16.85 secs)	0.952	0.057
+
+
+0.0100/0.0100	0.000/0.100	1667.82 secs	(17.52 secs)	0.811	0.035
+0.0100/0.0100	0.100/0.100	1684.65 secs	(16.83 secs)	0.963	0.062
+0.0100/0.0100	0.200/0.100	1701.39 secs	(16.74 secs)	0.963	0.063
+0.0100/0.0100	0.300/0.100	1717.92 secs	(16.53 secs)	0.962	0.061
+0.0100/0.0100	0.400/0.100	1734.18 secs	(16.26 secs)	0.962	0.065
+0.0100/0.0100	0.500/0.100	1750.19 secs	(16.01 secs)	0.965	0.064
+0.0100/0.0100	0.600/0.100	1766.26 secs	(16.07 secs)	0.966	0.063
+0.0100/0.0100	0.700/0.100	1782.29 secs	(16.03 secs)	0.963	0.062
+0.0100/0.0100	0.800/0.100	1798.36 secs	(16.07 secs)	0.964	0.066
+0.0100/0.0100	0.900/0.100	1814.60 secs	(16.24 secs)	0.964	0.063
+0.0100/0.0100	1.000/0.100	1830.86 secs	(16.26 secs)	0.961	0.064
+
+
+> 
+> # init <- function() {
+> #   hh_size <- create_hh()
+> #   
+> #   # Create frame for running the simulation.
+> #   # ID: ID of individual.
+> #   # SIZE: size of individual's household.
+> #   # HH: ID of individual's household.
+> #   # S: susceptibility status.
+> #   # E: exposed status.
+> #   # E_count: number of days since exposed.
+> #   # I: infectious status.
+> #   # I_count: number of days since infectious.
+> #   # R: recovered status.
+> #   # INC: incubation period.
+> #   # INF: infectious period.
+> #   data <- data.frame(ID = 1:N,
+> #                      SIZE = rep(hh_size, times = hh_size),
+> #                      HH = rep(1:length(hh_size), times = hh_size), 
+> #                      S = c(0, rep(1, N - 1)), 
+> #                      E = c(1, rep(0, N - 1)),
+> #                      E_count = c(1, rep(0, N - 1)), 
+> #                      I = 0,
+> #                      I_count = 0, 
+> #                      R = 0, 
+> #                      INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
+> #                      INF = 0)
+> #   
+> #   # Create frame for storing results.
+> #   # ID: ID of individual.
+> #   # SIZE: size of individual's household.
+> #   # HH: ID of individual's household.
+> #   # TYPE: the kind of infection: household (H), community (C), or both (B).
+> #   # TIME: when the individual became infectious.
+> #   # S_num: number of susceptible people in individual's household when their 
+> #   #        infectious period begins.
+> #   # I_num: number of people in household that this individual infected over 
+> #   #        their infectious period.
+> #   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
+> #   results$TYPE[1] <- '0'
+> #   
+> #   return(list(data, results))
+> # }
+> # 
+> # step <- function(params, t, data, results) {
+> #   recovered <- (data$INF > 0) & (data$I_count == data$INF)
+> #   if(sum(recovered, na.rm = T) > 0) {
+> #     data$R[recovered] <- 1
+> #     data$I[recovered] <- 0
+> #     data$I_count[recovered] <- 0 
+> #   }
+> #   
+> #   # Anyone who has been incubating for as many days as their incubation period
+> #   # is now infectious.
+> #   new_inf <- (data$INC > 0) & (data$E_count == data$INC)
+> #   num_new_inf <- sum(new_inf, na.rm = T)
+> #   if(num_new_inf > 0) {
+> #     # Change status to newly infectious and add infectious period.
+> #     data$I[new_inf] <- 1
+> #     random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
+> #     data$INF[new_inf] <- random_inf
+> #     
+> #     # Remove exposure status and exposure count.
+> #     data$E[new_inf] <- 0
+> #     data$E_count[new_inf] <- 0 
+> #     
+> #     # Record the time at which the infectious period starts.  
+> #     results$TIME[new_inf] <- t
+> #     
+> #     # Save the number of susceptible people in each infectious individual's 
+> #     # household.
+> #     S_data <- data %>% group_by(HH) %>% 
+> #       mutate(S_tot = sum(S)) %>% 
+> #       select(HH, S_tot)
+> #     results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
+> #   }
+> #   
+> #   # I_H is the number of infections inside each household.
+> #   I_data <- data %>% group_by(HH) %>% 
+> #     mutate(I_H = sum(I)) %>% 
+> #     ungroup()
+> #   
+> #   # Risk is growing logistically, with rate determined by params[2]
+> #   beta_E <- params[1]
+> #   gamma <- params[2]
+> #   risk_E <- pmin(beta_E * data$S / (1 + exp(-gamma * t)), 1)
+> #   
+> #   new_exposed <- rbinom(N, 1, risk_E)
+> #   num_new_exposed <- sum(new_exposed, na.rm = T)
+> #   if(num_new_exposed > 0) {
+> #     # Change status to newly exposed and add incubation period.
+> #     data$E[new_exposed == 1] <- 1
+> #     random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
+> #     data$INC[new_exposed == 1] <- random_inc
+> #     
+> #     # Remove susceptible status.
+> #     data$S[new_exposed == 1] <- 0
+> #     
+> #     # Get number of new infections in each household.
+> #     I_data <- I_data %>%
+> #       select(ID, HH, I, I_H) %>%
+> #       mutate(new_I = new_exposed) %>%
+> #       group_by(HH) %>%
+> #       # Find households with at least 1 currently infectious individual. If 
+> #       # exactly 1 infectious individual in household, assign all new 
+> #       # exposures to that individual. If there are multiple infectious 
+> #       # individuals, assign all infections to the infectious individual with 
+> #       # the first ID.
+> #       mutate(new_I = ifelse(I == 1 & ID == first(ID[I == 1]), sum(new_I), 0))
+> #     
+> #     results$I_num <- results$I_num + I_data$new_I
+> #     
+> #     # Label infection types.
+> #     results$TYPE[new_exposed == 1] <- 'E'
+> #   }
+> #   
+> #   # Increment exposure and infectious counters.
+> #   data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
+> #   data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
+> #   
+> #   return(list(data, results))
+> # }
+> # 
+> # params <- c(0.02, 0.007)
+> # t <- 1
+> # ret <- init()
+> # data <- ret[[1]]
+> # results <- ret[[2]]
+> # 
+> # ret <- step(params, t, data, results)
+> # t <- t + 1
+> # data <- ret[[1]]
+> # results <- ret[[2]]
+> 
+> proc.time()
+     user    system   elapsed 
+32818.607   529.833  1836.798 

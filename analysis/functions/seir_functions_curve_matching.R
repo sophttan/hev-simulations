@@ -113,7 +113,7 @@ SEIR_panmictic <- function(params, inf, verbose = F) {
     
     # risk is proportional to number infected, leading to exponential growth.
     beta_E <- params[1] 
-    risk_E <- pmin(beta_E * data$S  * sum(data$I) / N, 1)
+    risk_E <- pmin(beta_E * data$S * sum(data$I) / N, 1)
     
     new_exposed <- rbinom(N, 1, risk_E)
     num_new_exposed <- sum(new_exposed, na.rm = T)

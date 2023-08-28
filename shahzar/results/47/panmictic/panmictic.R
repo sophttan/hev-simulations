@@ -141,11 +141,11 @@ metrics <- function(results) {
   return(c(idc))
 }
 
-beta_Es <- c(seq(0.195, 0.203, 0.0001), seq(0.215, 0.224, 0.0001), seq(0.270, 0.273, 0.0001))
+beta_Es <- c(seq(0.195, 0.198, 0.0001), seq(0.219, 0.222, 0.0001), seq(0.270, 0.271, 0.0001))
 
 d_E <- length(beta_Es)
 
-reps <- 50000
+reps <- 100000
 idcs <- array(rep(NA, d_E * reps), dim = c(d_E, reps))
 t_tot <- 0
 for (i in 1:d_E) {

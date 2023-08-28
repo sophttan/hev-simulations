@@ -22,6 +22,7 @@ probability <- function(cases, index, rel_p_hh=1) {
   hh_sec <- cases$HH[index]
   # calculate relative likelihood that primary case caused secondary case based on their incidences
   # serial interval is approximate
+  # this should probably be updated with log normal incubation period density (?)
   results <- (rel_p_hh*(hh_prim==hh_sec)+(hh_prim!=hh_sec))*dnorm(inc_sec-inc_prim, mean=31.5, sd=4)
   # if primary case happens after secondary case, set probability to 0
   results[inc_prim>=inc_sec] <- 0

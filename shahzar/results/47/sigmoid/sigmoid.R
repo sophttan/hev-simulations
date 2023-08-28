@@ -142,7 +142,7 @@ metrics <- function(results) {
   return(c(idc))
 }
 
-beta_Es <- seq(0, 0.0015, 0.0001) # 16
+beta_Es <- seq(0.0001, 0.0012, 0.0001) # 16
 gammas <- seq(0, 0.10, 0.001) # 101
 
 d_E <- length(beta_Es)
