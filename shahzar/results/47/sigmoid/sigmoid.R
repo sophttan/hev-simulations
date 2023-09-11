@@ -142,13 +142,13 @@ metrics <- function(results) {
   return(c(idc))
 }
 
-beta_Es <- seq(0.0001, 0.0012, 0.0001) # 16
-gammas <- seq(0, 0.10, 0.001) # 101
+beta_Es <- seq(0.0001, 0.0020, 0.0001) # 20
+gammas <- seq(0, 1, 0.005) # 201
 
 d_E <- length(beta_Es)
 d_G <- length(gammas)
 
-reps <- 1000
+reps <- 500
 idcs <- array(rep(NA, d_E * d_G * reps), dim = c(d_E, d_G, reps))
 t_tot <- 0
 for (i in 1:d_E) {

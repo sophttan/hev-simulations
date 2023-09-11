@@ -253,6 +253,10 @@ while (i < n_sims) {
 beta_E <- 0.2704
 params <- c(beta_E)
 
+# Variance in cumulative incidence is quite high.
+# Try saving the seeds of the simulations that actually were
+# quite close to 30%. 
+# Only save simulations that have between 2% of the desired incidence.
 n_sims <- 1000
 i <- 0
 while (i < n_sims) {

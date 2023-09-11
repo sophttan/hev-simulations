@@ -102,40 +102,38 @@ method_R <- function(results) {
     R <- R + probs
     R_HH <- R_HH + HH_probs
   }
-  return(mean(R_HH) / mean(R))
+  return(c(mean(R_HH), mean(R), mean(R_HH / R, na.rm = T)))
+    # originally return mean(R_HH) / mean(R)
 }
 
 # 5% Cumulative Incidence
 n_sims <- 1000
 Rs <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('5/', i, '.csv')) %>% select(-X)
-  write.csv(results, file = paste0('5/', i, '.csv'), row.names = F)
+  results <- read.csv(paste0('5/', i, '.csv'))
   method_R(results)
 }
 Rs <- matrix(Rs, n_sims, byrow = T)
-saveRDS(Rs, file = '5/Rs.rds')
-write.table(Rs, file = '5/Rs.txt', row.names = F, col.names = F)
+saveRDS(Rs, file = '5/Rs_all_2.rds')
+write.table(Rs, file = '5/Rs_all_2.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
 n_sims <- 1000
 Rs <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('10/', i, '.csv')) %>% select(-X)
-  write.csv(results, file = paste0('10/', i, '.csv'), row.names = F)
+  results <- read.csv(paste0('10/', i, '.csv'))
   method_R(results)
 }
 Rs <- matrix(Rs, n_sims, byrow = T)
-saveRDS(Rs, file = '10/Rs.rds')
-write.table(Rs, file = '10/Rs.txt', row.names = F, col.names = F)
+saveRDS(Rs, file = '10/Rs_all_2.rds')
+write.table(Rs, file = '10/Rs_all_2.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
 n_sims <- 1000
 Rs <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('30/', i, '.csv')) %>% select(-X)
-  write.csv(results, file = paste0('30/', i, '.csv'), row.names = F)
+  results <- read.csv(paste0('30/', i, '.csv'))
   method_R(results)
 }
 Rs <- matrix(Rs, n_sims, byrow = T)
-saveRDS(Rs, file = '30/Rs.rds')
-write.table(Rs, file = '30/Rs.txt', row.names = F, col.names = F)
+saveRDS(Rs, file = '30/Rs_all_2.rds')
+write.table(Rs, file = '30/Rs_all_2.txt', row.names = F, col.names = F)
