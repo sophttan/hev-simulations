@@ -677,3 +677,39 @@ Loading required package: parallel
 +         i <- i + 1
 +     }
 + }
+> 
+> # 30% Cumulative Incidence
+> beta_H <- 12
+> beta_C <- 0.005
+> beta_E <- 0.00080
+> params <- c(beta_H, beta_C, beta_E)
+> 
+> n_sims <- 1000
+> i <- 0
+> while (i < n_sims) {
++     results <- SEIR_mix(params)
++     if (metrics(results) > 0.29 | metrics(results) < 0.31) {
++         write.csv(results, file = paste0('25/30/', i, '.csv'), row.names = F)
++         i <- i + 1
++     }
++ }
+> 
+> ##
+> ## 50%
+> ##
+> 
+> # 5% Cumulative Incidence
+> beta_H <- 28
+> beta_C <- 0.005
+> beta_E <- 0.00010
+> params <- c(beta_H, beta_C, beta_E)
+> 
+> n_sims <- 1000
+> i <- 0
+> while (i < n_sims) {
++     results <- SEIR_mix(params)
++     if (metrics(results) > 0.04 | metrics(results) < 0.06) {
++         write.csv(results, file = paste0('50/5/', i, '.csv'), row.names = F)
++         i <- i + 1
++     }
++ }

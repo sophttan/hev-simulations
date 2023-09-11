@@ -114,7 +114,8 @@ method_R <- function(results) {
   
   for (k in 1:nrow(cases)) {
     rel_p_hh <- proportion_HH(results)
-    probs <- probability(cases, k, rel_p_hh)
+    #probs <- probability(cases, k, rel_p_hh)
+    probs <- probability(cases, k)
     HH_probs <- probs
     HH_probs[cases$HH != cases$HH[k]] <- 0
     R <- R + probs

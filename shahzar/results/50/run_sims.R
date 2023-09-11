@@ -54,13 +54,13 @@ SEIR_pan <- function(params, inf = 7, verbose = F) {
   data <- data.frame(ID = 1:N,
                      SIZE = rep(hh_size, times = hh_size),
                      HH = rep(1:length(hh_size), times = hh_size), 
-                     S = rep(1, N), 
-                     E = rep(0, N),
-                     E_count = rep(0, N), 
+                     S = c(0, rep(1, N - 1)), 
+                     E = c(1, rep(0, N - 1)),
+                     E_count = c(1, rep(0, N - 1)), 
                      I = 0,
                      I_count = 0, 
                      R = 0, 
-                     INC = rep(0, N),
+                     INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
                      INF = 0)
   
   # Create frame for storing results.
@@ -74,6 +74,7 @@ SEIR_pan <- function(params, inf = 7, verbose = F) {
   # I_num: number of people in household that this individual infected over 
   #        their infectious period.
   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
+  results$TYPE[1] <- '0'
     
   for(t in 1:time) {
     if (verbose) {
