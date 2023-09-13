@@ -598,3 +598,7 @@ Loading required package: parallel
 +         i <- i + 1
 +     }
 + }
+> 
+> proc.time()
+     user    system   elapsed 
+12839.720   176.723 13720.946 
