@@ -190,3 +190,45 @@ Loading required package: parallel
 +         i <- i + 1
 +     }
 + }
+> cat(paste0('05%:\t', j, '\n'))
+05%:	1172
+> 
+> # 10% Cumulative Incidence
+> beta_E <- 0.00031
+> params <- c(beta_E)
+> 
+> n_sims <- 1000
+> i <- 1
+> j <- 0
+> while (i <= n_sims) {
++     results <- SEIR_env(params)
++     j <- j + 1
++     if (metrics(results) > 0.09 & metrics(results) < 0.11) {
++         write.csv(results, file = paste0('0/10/', i, '.csv'), row.names = F)
++         i <- i + 1
++     }
++ }
+> cat(paste0('10%:\t', j, '\n'))
+10%:	1501
+> 
+> # 30% Cumulative Incidence
+> beta_E <- 0.00107
+> params <- c(beta_E)
+> 
+> n_sims <- 1000
+> i <- 1
+> j <- 0
+> while (i <= n_sims) {
++     results <- SEIR_env(params)
++     j <- j + 1
++     if (metrics(results) > 0.29 & metrics(results) < 0.31) {
++         write.csv(results, file = paste0('0/30/', i, '.csv'), row.names = F)
++         i <- i + 1
++     }
++ }
+> cat(paste0('30%:\t', j, '\n'))
+30%:	2106
+> 
+> proc.time()
+   user  system elapsed 
+552.784   4.879 564.117 

@@ -298,7 +298,7 @@ n_sims <- 1000
 i <- 1
 j <- 0
 while (i <= n_sims) {
-    results <- SEIR_pan(params)
+    results <- SEIR_mix(params)
     j <- j + 1
     if (all(metrics(results) > c(0.29, 0.45)) & all(metrics(results) < c(0.31, 0.55))) {
         write.csv(results, file = paste0('50/30/', i, '.csv'), row.names = F)
@@ -340,7 +340,7 @@ n_sims <- 1000
 i <- 1
 j <- 0
 while (i <= n_sims) {
-    results <- SEIR_pan(params)
+    results <- SEIR_mix(params)
     j <- j + 1
     if (all(metrics(results) > c(0.09, 0.70)) & all(metrics(results) < c(0.11, 0.80))) {
         write.csv(results, file = paste0('75/10/', i, '.csv'), row.names = F)
@@ -359,7 +359,7 @@ n_sims <- 1000
 i <- 1
 j <- 0
 while (i <= n_sims) {
-    results <- SEIR_pan(params)
+    results <- SEIR_mix(params)
     j <- j + 1
     if (all(metrics(results) > c(0.29, 0.70)) & all(metrics(results) < c(0.31, 0.80))) {
         write.csv(results, file = paste0('75/30/', i, '.csv'), row.names = F)
