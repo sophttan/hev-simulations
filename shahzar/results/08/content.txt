@@ -1,3 +1,0 @@
-Explore variances and outputs of different parameter sets with different samples sizes.
-Sample sizes are 10, 50, 100, 250, 500, 750, 1000.
-Parameter sets of (beta_H, beta_C) are (30, 0.12), (23, 0.1), and (11, 0.05).

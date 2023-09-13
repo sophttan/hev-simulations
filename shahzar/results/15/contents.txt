@@ -1,2 +1,0 @@
-Compare performance with and without parallelization.
-With 12 cores: 1776.606 seconds

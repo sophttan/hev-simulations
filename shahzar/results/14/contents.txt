@@ -1,2 +1,0 @@
-Compare performance with and without parallelization.
-With 8 cores: ???

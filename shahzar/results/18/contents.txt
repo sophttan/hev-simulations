@@ -1,5 +1,0 @@
-Grid search in R.
-
-beta_Hs <- seq(10, 70, 1)
-beta_Cs <- seq(0, 1, 0.05)
-reps <- 40

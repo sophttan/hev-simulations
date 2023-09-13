@@ -1,1 +1,0 @@
-1000 simulations of code with parameters (30, 0.15) for the sake of validation.
