@@ -188,7 +188,7 @@ metrics <- function(results) {
   return(c(idc, sar, prp))
 }
 
-beta_Hs <- seq(1, 10, 1) # 11
+beta_Hs <- seq(10, 13, 1) # 4
 beta_Cs <- seq(0, 0.005, 0.001) # 6
 beta_Es <- seq(0.00015, 0.00035, 0.00001) # 21
 
@@ -210,7 +210,7 @@ for (i in 1:d_H) {
       
       params <- c(beta_H, beta_C, beta_E)
       
-      cat(paste0(format(beta_H, nsmall = 0), '/10\t', 
+      cat(paste0(format(beta_H, nsmall = 0), '/13\t', 
                  format(beta_C, nsmall = 3), '/0.005\t',
                  format(beta_E, nsmall = 5, scientific = F), '/0.00035\t'))
         

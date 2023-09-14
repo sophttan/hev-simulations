@@ -340,3 +340,10 @@ Loading required package: parallel
 +   results <- read.csv(paste0('100/30/', i, '.csv'))
 +   values(results)
 + }
+> vals <- matrix(vals, n_sims, byrow = T)
+> saveRDS(vals, file = '100/30/vals.rds')
+> write.table(vals, file = '100/30/vals.txt', row.names = F, col.names = F)
+> 
+> proc.time()
+     user    system   elapsed 
+27699.305    62.135  1217.994 

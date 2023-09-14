@@ -188,15 +188,15 @@ metrics <- function(results) {
   return(c(idc, sar, prp))
 }
 
-beta_Hs <- seq(11, 21, 1) # 11
-beta_Cs <- seq(0.01, 0.04, 0.001) # 31
-beta_Es <- seq(0.00001, 0.00010, 0.00001) # 10
+beta_Hs <- seq(26, 30, 1) # 5
+beta_Cs <- seq(0.000, 0.010, 0.001) # 11
+beta_Es <- seq(0.00001, 0.00015, 0.00001) # 15
 
 d_H <- length(beta_Hs)
 d_C <- length(beta_Cs)
 d_E <- length(beta_Es)
 
-reps <- 50
+reps <- 200
 idcs <- array(rep(NA, d_H * d_C * d_E * reps), dim = c(d_H, d_C, d_E, reps))
 sars <- array(rep(NA, d_H * d_C * d_E * reps), dim = c(d_H, d_C, d_E, reps))
 prps <- array(rep(NA, d_H * d_C * d_E * reps), dim = c(d_H, d_C, d_E, reps))
