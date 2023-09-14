@@ -242,3 +242,25 @@ Loading required package: parallel
 +         i <- i + 1
 +     }
 + }
+> cat(paste0('05%:\t', j, '\n'))
+05%:	7499
+> 
+> # 10% Cumulative Incidence
+> beta_H <- 27
+> beta_C <- 0.005
+> beta_E <- 0.00015
+> params <- c(beta_H, beta_C, beta_E)
+> 
+> n_sims <- 1000
+> i <- 1
+> j <- 0
+> while (i <= n_sims) {
++     results <- SEIR_pan(params)
++     j <- j + 1
++     if (all(metrics(results) > c(0.09, 0.45)) & all(metrics(results) < c(0.11, 0.55))) {
++         write.csv(results, file = paste0('50/10/', i, '.csv'), row.names = F)
++         i <- i + 1
++     }
++ }
+Error in SEIR_pan(params) : could not find function "SEIR_pan"
+Execution halted

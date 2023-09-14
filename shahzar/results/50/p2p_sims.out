@@ -232,3 +232,22 @@ Loading required package: parallel
 +         i <- i + 1
 +     }
 + }
+> cat(paste0('05%:\t', j, '\n'))
+05%:	11822
+> 
+> # 10% Cumulative Incidence
+> beta_H <- 51
+> beta_C <- 0.100
+> params <- c(beta_H, beta_C)
+> 
+> n_sims <- 1000
+> i <- 1
+> j <- 0
+> while (i <= n_sims) {
++     results <- SEIR_p2p(params)
++     j <- j + 1
++     if (metrics(results) > 0.09 & metrics(results) < 0.11) {
++         write.csv(results, file = paste0('100/10/', i, '.csv'), row.names = F)
++         i <- i + 1
++     }
++ }
