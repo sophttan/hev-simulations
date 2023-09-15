@@ -164,6 +164,48 @@ vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/30/vals.rds')
 write.table(vals, file = 'pan/30/vals.txt', row.names = F, col.names = F)
 
+
+
+
+##############
+### Pure E ###
+##############
+
+# 5% Cumulative Incidence
+n_sims <- 1000
+vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
+  results <- read.csv(paste0('env/5/', i, '.csv'))
+  values(results)
+}
+vals <- matrix(vals, n_sims, byrow = T)
+saveRDS(vals, file = 'env/5/vals.rds')
+write.table(vals, file = 'env/5/vals.txt', row.names = F, col.names = F)
+
+
+# 10% Cumulative Incidence
+n_sims <- 1000
+vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
+  results <- read.csv(paste0('env/10/', i, '.csv'))
+  values(results)
+}
+vals <- matrix(vals, n_sims, byrow = T)
+saveRDS(vals, file = 'env/10/vals.rds')
+write.table(vals, file = 'env/10/vals.txt', row.names = F, col.names = F)
+
+
+# 30% Cumulative Incidence
+n_sims <- 1000
+vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
+  results <- read.csv(paste0('env/30/', i, '.csv'))
+  values(results)
+}
+vals <- matrix(vals, n_sims, byrow = T)
+saveRDS(vals, file = 'env/30/vals.rds')
+write.table(vals, file = 'env/30/vals.txt', row.names = F, col.names = F)
+
+
+
+
 ###############
 ##  25% P2P  ##
 ###############
@@ -199,6 +241,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/30/vals.rds')
 write.table(vals, file = '25/30/vals.txt', row.names = F, col.names = F)
+
+
+
 
 ###############
 ##  50% P2P  ##
@@ -236,6 +281,9 @@ vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/30/vals.rds')
 write.table(vals, file = '50/30/vals.txt', row.names = F, col.names = F)
 
+
+
+
 ###############
 ##  75% P2P  ##
 ###############
@@ -271,6 +319,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/30/vals.rds')
 write.table(vals, file = '75/30/vals.txt', row.names = F, col.names = F)
+
+
+
 
 ##############
 ## 100% P2P ##

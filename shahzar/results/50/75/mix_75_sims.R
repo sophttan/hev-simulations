@@ -180,7 +180,7 @@ metrics <- function(results) {
   idc <- mean(!is.na(results$TIME))
   
   cases <- results[!is.na(results$TIME), ]
-  prp <- mean((cases$TYPE == 'H') | (cases$TYPE == 'HC') | (cases$TYPE == 'HCE'))
+  prp <- mean((cases$TYPE != 'E') & (cases$TYPE != '0'))
     
   return(c(idc, prp))
 }

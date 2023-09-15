@@ -1,0 +1,319 @@
+
+R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284765 15.3     664565 35.5   464468 24.9
+Vcells 490458  3.8    8388608 64.0  1837328 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> message(detectCores())
+24
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> #########################
+> #### SEIR Simulation ####
+> #########################
+> time <- 365 # Number of days.
+> inf <- 7 # Average infectious period length.
+> N <- 1000 # Population size.
+> 
+> create_hh <- function() {
++   # Randomly sample household sizes such that total population is 1000 
++   # individuals.
++   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
++   
++   # Keep households such that total population is < 1000.
++   hh_size <- hh_size[which(cumsum(hh_size) < N)]
++   
++   leftover <- N - sum(hh_size)
++   if (leftover < 3) {
++     hh <- 1:length(hh_size)
++     sampled <- sample(hh[hh_size < 6], leftover)
++     hh_size[sampled] <- hh_size[sampled] + 1
++   } else {
++     hh_size <- c(hh_size, leftover)
++   }
++   return(hh_size)
++ }
+> 
+> SEIR_pan <- function(params, inf = 7, verbose = F) {
++   hh_size <- create_hh()
++   
++   # Create frame for running the simulation.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # S: susceptibility status.
++   # E: exposed status.
++   # E_count: number of days since exposed.
++   # I: infectious status.
++   # I_count: number of days since infectious.
++   # R: recovered status.
++   # INC: incubation period.
++   # INF: infectious period.
++   data <- data.frame(ID = 1:N,
++                      SIZE = rep(hh_size, times = hh_size),
++                      HH = rep(1:length(hh_size), times = hh_size), 
++                      S = c(0, rep(1, N - 1)), 
++                      E = c(1, rep(0, N - 1)),
++                      E_count = c(1, rep(0, N - 1)), 
++                      I = 0,
++                      I_count = 0, 
++                      R = 0, 
++                      INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
++                      INF = 0)
++   
++   # Create frame for storing results.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # TYPE: the kind of infection: household (H), community (C), or both (B).
++   # TIME: when the individual became infectious.
++   # S_num: number of susceptible people in individual's household when their 
++   #        infectious period begins.
++   # I_num: number of people in household that this individual infected over 
++   #        their infectious period.
++   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
++   results$TYPE[1] <- '0'
++     
++   for(t in 1:time) {
++     if (verbose) {
++       if (t %% 10 == 0) {
++         cat(paste0(t, ' '))
++       }
++     }
++     
++     # Anyone who has been infectious for as many days as their infectious period
++     # is now recovered.
++     recovered <- (data$INF > 0) & (data$I_count == data$INF)
++     if(sum(recovered, na.rm = T) > 0) {
++       data$R[recovered] <- 1
++       data$I[recovered] <- 0
++       data$I_count[recovered] <- 0 
++     }
++     
++     # Anyone who has been incubating for as many days as their incubation period
++     # is now infectious.
++     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
++     num_new_inf <- sum(new_inf, na.rm = T)
++     if(num_new_inf > 0) {
++       # Change status to newly infectious and add infectious period.
++       data$I[new_inf] <- 1
++       random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
++       data$INF[new_inf] <- random_inf
++       
++       # Remove exposure status and exposure count.
++       data$E[new_inf] <- 0
++       data$E_count[new_inf] <- 0 
++       
++       results$TIME[new_inf] <- t
++     }
++     
++     # risk is proportional to number infected, leading to exponential growth.
++     beta_E <- params[1] 
++     risk_E <- pmin(beta_E * data$S  * sum(data$I) / N, 1)
++     
++     new_exposed <- rbinom(N, 1, risk_E)
++     num_new_exposed <- sum(new_exposed, na.rm = T)
++     if(num_new_exposed > 0) {
++       # Change status to newly exposed and add incubation period.
++       data$E[new_exposed == 1] <- 1
++       random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
++       data$INC[new_exposed == 1] <- random_inc
++       
++       # Remove susceptible status.
++       data$S[new_exposed == 1] <- 0
++         
++       # Label infection types.
++       results$TYPE[new_exposed == 1] <- 'E'
++     }
++     
++     # Increment exposure and infectious counters.
++     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
++     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
++   }
++   return(results)
++ }
+> 
+> metrics <- function(results) {
++   # Incidence is the proportion of the population that became infected.
++   idc <- mean(!is.na(results$TIME))
++   return(c(idc))
++ }
+> 
+> beta_Es <- seq(0.160, 0.260, 0.001) #101
+> 
+> d_E <- length(beta_Es)
+> 
+> reps <- 1000
+> idcs <- array(rep(NA, d_E * reps), dim = c(d_E, reps))
+> t_tot <- 0
+> for (i in 1:d_E) {
++   beta_E <- beta_Es[i]
++   params <- c(beta_E)
++ 
++   cat(paste0(format(beta_E, nsmall = 3, digits = 3, scientific = F), '/0.2710\t'))
++ 
++   t_0 <- Sys.time()
++   vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
++     results <- SEIR_pan(params) 
++     metrics(results)
++   }
++   t_1 <- Sys.time()
++   t_tot <- t_tot + (t_1 - t_0)
++ 
++   cat(paste0(format(t_tot, nsmall = 2, digits = 4), '\t(', 
++              format(t_1 - t_0, nsmall = 2, digits = 4), ')\t'))
++ 
++   vals <- matrix(vals, reps, byrow = T)
++   idcs[i, ] <- vals[, 1]
++ 
++       cat(paste0(format(round(mean(idcs[i, ]), 3), nsmall = 3), '\t',
++                  format(round(sd(idcs[i, ]), 3), nsmall = 3), '\t',
++                  format(round(mean(idcs[i, idcs[i, ] > 0.01]), 3), nsmall = 3), '\t',
++                  format(round(sd(idcs[i, idcs[i, ] > 0.01]), 3), nsmall = 3), '\t', 
++                  length(idcs[i, idcs[i, ] > 0.01])/1000, '\n'))
++ 
++   saveRDS(idcs, file = 'idcs.rds')
++   write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
++ }
+0.160/0.2710	4.582 secs	(4.582 secs)	0.015	0.025	0.041	0.030	0.325
+0.161/0.2710	9.147 secs	(4.565 secs)	0.016	0.026	0.044	0.030	0.313
+0.162/0.2710	13.78 secs	(4.631 secs)	0.016	0.025	0.043	0.028	0.34
+0.163/0.2710	18.45 secs	(4.67 secs)	0.017	0.028	0.044	0.032	0.356
+0.164/0.2710	23.29 secs	(4.845 secs)	0.018	0.029	0.049	0.033	0.325
+0.165/0.2710	27.97 secs	(4.679 secs)	0.019	0.031	0.050	0.034	0.355
+0.166/0.2710	32.63 secs	(4.661 secs)	0.020	0.031	0.049	0.034	0.365
+0.167/0.2710	37.49 secs	(4.855 secs)	0.020	0.030	0.047	0.033	0.384
+0.168/0.2710	42.50 secs	(5.008 secs)	0.020	0.032	0.052	0.036	0.354
+0.169/0.2710	47.20 secs	(4.702 secs)	0.023	0.037	0.054	0.042	0.401
+0.170/0.2710	52.28 secs	(5.078 secs)	0.021	0.037	0.055	0.046	0.363
+0.171/0.2710	57.08 secs	(4.799 secs)	0.022	0.034	0.054	0.037	0.373
+0.172/0.2710	61.85 secs	(4.774 secs)	0.024	0.037	0.056	0.042	0.407
+0.173/0.2710	66.60 secs	(4.751 secs)	0.024	0.036	0.057	0.039	0.401
+0.174/0.2710	71.36 secs	(4.764 secs)	0.023	0.035	0.054	0.039	0.393
+0.175/0.2710	76.15 secs	(4.782 secs)	0.026	0.040	0.061	0.043	0.401
+0.176/0.2710	81.01 secs	(4.86 secs)	0.027	0.042	0.064	0.046	0.41
+0.177/0.2710	85.89 secs	(4.881 secs)	0.027	0.042	0.063	0.046	0.406
+0.178/0.2710	90.75 secs	(4.867 secs)	0.027	0.043	0.064	0.048	0.398
+0.179/0.2710	95.70 secs	(4.948 secs)	0.029	0.043	0.064	0.046	0.43
+0.180/0.2710	100.59 secs	(4.886 secs)	0.028	0.043	0.063	0.046	0.427
+0.181/0.2710	105.54 secs	(4.956 secs)	0.030	0.044	0.065	0.047	0.448
+0.182/0.2710	110.40 secs	(4.855 secs)	0.030	0.045	0.070	0.049	0.407
+0.183/0.2710	115.39 secs	(4.987 secs)	0.032	0.047	0.069	0.049	0.445
+0.184/0.2710	120.32 secs	(4.933 secs)	0.032	0.048	0.072	0.052	0.42
+0.185/0.2710	125.36 secs	(5.038 secs)	0.034	0.050	0.073	0.053	0.451
+0.186/0.2710	130.33 secs	(4.978 secs)	0.035	0.050	0.077	0.052	0.437
+0.187/0.2710	135.44 secs	(5.108 secs)	0.036	0.052	0.075	0.055	0.455
+0.188/0.2710	140.64 secs	(5.194 secs)	0.040	0.057	0.083	0.059	0.464
+0.189/0.2710	145.69 secs	(5.048 secs)	0.039	0.055	0.078	0.057	0.48
+0.190/0.2710	150.78 secs	(5.093 secs)	0.042	0.058	0.083	0.059	0.486
+0.191/0.2710	156.34 secs	(5.56 secs)	0.044	0.062	0.088	0.064	0.485
+0.192/0.2710	161.51 secs	(5.172 secs)	0.046	0.064	0.090	0.066	0.498
+0.193/0.2710	166.68 secs	(5.164 secs)	0.047	0.062	0.087	0.062	0.526
+0.194/0.2710	172.10 secs	(5.424 secs)	0.050	0.067	0.094	0.068	0.513
+0.195/0.2710	177.23 secs	(5.128 secs)	0.046	0.064	0.091	0.066	0.49
+0.196/0.2710	182.59 secs	(5.357 secs)	0.050	0.068	0.097	0.068	0.508
+0.197/0.2710	187.88 secs	(5.293 secs)	0.051	0.067	0.096	0.067	0.527
+0.198/0.2710	193.52 secs	(5.644 secs)	0.053	0.069	0.100	0.068	0.524
+0.199/0.2710	198.83 secs	(5.311 secs)	0.049	0.068	0.097	0.069	0.498
+0.200/0.2710	204.38 secs	(5.549 secs)	0.055	0.074	0.106	0.073	0.509
+0.201/0.2710	209.87 secs	(5.482 secs)	0.062	0.077	0.114	0.073	0.539
+0.202/0.2710	215.30 secs	(5.431 secs)	0.063	0.078	0.113	0.074	0.547
+0.203/0.2710	220.84 secs	(5.542 secs)	0.060	0.079	0.112	0.078	0.529
+0.204/0.2710	226.45 secs	(5.607 secs)	0.067	0.084	0.118	0.083	0.555
+0.205/0.2710	231.94 secs	(5.491 secs)	0.066	0.085	0.120	0.084	0.535
+0.206/0.2710	237.41 secs	(5.477 secs)	0.067	0.086	0.122	0.083	0.545
+0.207/0.2710	243.06 secs	(5.647 secs)	0.069	0.086	0.117	0.085	0.579
+0.208/0.2710	248.74 secs	(5.685 secs)	0.071	0.088	0.124	0.085	0.565
+0.209/0.2710	254.37 secs	(5.628 secs)	0.073	0.092	0.128	0.090	0.56
+0.210/0.2710	259.97 secs	(5.594 secs)	0.077	0.094	0.130	0.091	0.582
+0.211/0.2710	265.44 secs	(5.476 secs)	0.077	0.094	0.132	0.091	0.575
+0.212/0.2710	270.89 secs	(5.452 secs)	0.076	0.094	0.131	0.092	0.571
+0.213/0.2710	276.49 secs	(5.60 secs)	0.078	0.096	0.136	0.093	0.569
+0.214/0.2710	282.09 secs	(5.593 secs)	0.083	0.100	0.141	0.096	0.582
+0.215/0.2710	287.74 secs	(5.651 secs)	0.086	0.100	0.147	0.093	0.576
+0.216/0.2710	293.62 secs	(5.88 secs)	0.086	0.105	0.147	0.100	0.578
+0.217/0.2710	299.41 secs	(5.787 secs)	0.095	0.108	0.154	0.101	0.609
+0.218/0.2710	305.25 secs	(5.847 secs)	0.096	0.111	0.158	0.105	0.601
+0.219/0.2710	310.81 secs	(5.561 secs)	0.100	0.115	0.163	0.108	0.606
+0.220/0.2710	316.38 secs	(5.566 secs)	0.104	0.118	0.168	0.109	0.611
+0.221/0.2710	322.00 secs	(5.618 secs)	0.099	0.112	0.160	0.104	0.615
+0.222/0.2710	327.54 secs	(5.539 secs)	0.104	0.118	0.168	0.111	0.611
+0.223/0.2710	333.24 secs	(5.706 secs)	0.111	0.124	0.175	0.116	0.63
+0.224/0.2710	338.88 secs	(5.641 secs)	0.108	0.124	0.180	0.114	0.593
+0.225/0.2710	344.54 secs	(5.657 secs)	0.108	0.124	0.175	0.117	0.615
+0.226/0.2710	350.21 secs	(5.675 secs)	0.111	0.127	0.183	0.118	0.603
+0.227/0.2710	355.97 secs	(5.755 secs)	0.117	0.128	0.186	0.116	0.623
+0.228/0.2710	361.87 secs	(5.904 secs)	0.120	0.130	0.188	0.118	0.633
+0.229/0.2710	367.73 secs	(5.857 secs)	0.126	0.133	0.196	0.118	0.64
+0.230/0.2710	373.64 secs	(5.91 secs)	0.139	0.141	0.203	0.128	0.683
+0.231/0.2710	379.69 secs	(6.048 secs)	0.138	0.141	0.207	0.126	0.665
+0.232/0.2710	385.58 secs	(5.895 secs)	0.134	0.147	0.214	0.133	0.623
+0.233/0.2710	391.51 secs	(5.924 secs)	0.146	0.152	0.222	0.136	0.652
+0.234/0.2710	397.55 secs	(6.047 secs)	0.141	0.148	0.215	0.134	0.651
+0.235/0.2710	403.67 secs	(6.119 secs)	0.145	0.148	0.218	0.132	0.66
+0.236/0.2710	409.74 secs	(6.068 secs)	0.146	0.152	0.227	0.134	0.64
+0.237/0.2710	415.91 secs	(6.164 secs)	0.154	0.154	0.229	0.137	0.672
+0.238/0.2710	422.00 secs	(6.092 secs)	0.153	0.152	0.226	0.133	0.674
+0.239/0.2710	428.37 secs	(6.373 secs)	0.163	0.159	0.244	0.135	0.666
+0.240/0.2710	434.67 secs	(6.303 secs)	0.166	0.165	0.246	0.145	0.672
+0.241/0.2710	441.17 secs	(6.498 secs)	0.165	0.164	0.242	0.145	0.68
+0.242/0.2710	447.62 secs	(6.449 secs)	0.177	0.167	0.256	0.143	0.692
+0.243/0.2710	453.75 secs	(6.13 secs)	0.164	0.167	0.252	0.146	0.65
+0.244/0.2710	460.14 secs	(6.392 secs)	0.178	0.169	0.253	0.148	0.701
+0.245/0.2710	466.47 secs	(6.328 secs)	0.187	0.174	0.269	0.147	0.694
+0.246/0.2710	472.95 secs	(6.477 secs)	0.189	0.180	0.274	0.154	0.688
+0.247/0.2710	479.22 secs	(6.267 secs)	0.195	0.182	0.288	0.149	0.675
+0.248/0.2710	485.71 secs	(6.492 secs)	0.197	0.179	0.277	0.151	0.708
+0.249/0.2710	492.34 secs	(6.633 secs)	0.201	0.183	0.285	0.154	0.701
+0.250/0.2710	498.89 secs	(6.553 secs)	0.215	0.186	0.298	0.154	0.719
+0.251/0.2710	505.49 secs	(6.598 secs)	0.210	0.184	0.291	0.153	0.719
+0.252/0.2710	512.17 secs	(6.683 secs)	0.223	0.194	0.307	0.163	0.725
+0.253/0.2710	518.90 secs	(6.724 secs)	0.213	0.195	0.301	0.166	0.705
+0.254/0.2710	525.56 secs	(6.662 secs)	0.228	0.193	0.309	0.161	0.735
+0.255/0.2710	532.17 secs	(6.612 secs)	0.229	0.197	0.316	0.163	0.723
+0.256/0.2710	538.88 secs	(6.712 secs)	0.224	0.202	0.320	0.167	0.699
+0.257/0.2710	545.44 secs	(6.562 secs)	0.235	0.205	0.326	0.170	0.719
+0.258/0.2710	552.12 secs	(6.68 secs)	0.244	0.204	0.332	0.166	0.732
+0.259/0.2710	558.82 secs	(6.692 secs)	0.236	0.209	0.338	0.168	0.698
+0.260/0.2710	565.67 secs	(6.856 secs)	0.248	0.205	0.335	0.168	0.739
+> t', row.names = F, col.names = F)
++ }
++ Error: unexpected end of input
+Execution halted
