@@ -1,0 +1,434 @@
+
+R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284765 15.3     664565 35.5   464468 24.9
+Vcells 490458  3.8    8388608 64.0  1837328 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> message(detectCores())
+24
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> #########################
+> #### SEIR Simulation ####
+> #########################
+> time <- 365 # Number of days.
+> inf <- 7 # Average infectious period length.
+> N <- 1000 # Population size.
+> 
+> create_hh <- function() {
++   # Randomly sample household sizes such that total population is 1000 
++   # individuals.
++   hh_size <- sample(x = c(3, 4, 5, 6), size = 340, replace = T)
++   
++   # Keep households such that total population is < 1000.
++   hh_size <- hh_size[which(cumsum(hh_size) < N)]
++   
++   leftover <- N - sum(hh_size)
++   if (leftover < 3) {
++     hh <- 1:length(hh_size)
++     sampled <- sample(hh[hh_size < 6], leftover)
++     hh_size[sampled] <- hh_size[sampled] + 1
++   } else {
++     hh_size <- c(hh_size, leftover)
++   }
++   return(hh_size)
++ }
+> 
+> SEIR_p2p <- function(params, inf = 7, verbose = F) {
++   hh_size <- create_hh()
++   
++   # Create frame for running the simulation.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # S: susceptibility status.
++   # E: exposed status.
++   # E_count: number of days since exposed.
++   # I: infectious status.
++   # I_count: number of days since infectious.
++   # R: recovered status.
++   # INC: incubation period.
++   # INF: infectious period.
++   data <- data.frame(ID = 1:N,
++                      SIZE = rep(hh_size, times = hh_size),
++                      HH = rep(1:length(hh_size), times = hh_size), 
++                      S = c(0, rep(1, N - 1)), 
++                      E = c(1, rep(0, N - 1)),
++                      E_count = c(1, rep(0, N - 1)), 
++                      I = 0,
++                      I_count = 0, 
++                      R = 0, 
++                      INC = c(round(rlnorm(1, meanlog = log(29.8), sdlog = 0.45)), rep(0, N - 1)),
++                      INF = 0)
++   
++   # Create frame for storing results.
++   # ID: ID of individual.
++   # SIZE: size of individual's household.
++   # HH: ID of individual's household.
++   # TYPE: the kind of infection: household (H), community (C), or both (B).
++   # TIME: when the individual became infectious.
++   # S_NUM: number of susceptible people in individual's household when their 
++   #        infectious period begins.
++   # I_NUM: number of people in household that this individual infected over 
++   #        their infectious period.
++   results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_NUM = NA, I_NUM = 0)
++   results$TYPE[1] <- '0'
++   
++   for(t in 1:time) {
++     if (verbose) {
++       if (t %% 10 == 0) {
++         cat(paste0(t, ' '))
++       }
++     }
++     
++     # Anyone who has been infectious for as many days as their infectious period
++     # is now recovered.
++     recovered <- (data$INF > 0) & (data$I_count == data$INF)
++     if(sum(recovered, na.rm = T) > 0) {
++       data$R[recovered] <- 1
++       data$I[recovered] <- 0
++       data$I_count[recovered] <- 0 
++     }
++     
++     # Anyone who has been incubating for as many days as their incubation period
++     # is now infectious.
++     new_inf <- (data$INC > 0) & (data$E_count == data$INC)
++     num_new_inf <- sum(new_inf, na.rm = T)
++     if(num_new_inf > 0) {
++       # Change status to newly infectious and add infectious period.
++       data$I[new_inf] <- 1
++       random_inf <- rnorm(num_new_inf, mean = inf, sd = 1) %>% round()
++       data$INF[new_inf] <- random_inf
++       
++       # Remove exposure status and exposure count.
++       data$E[new_inf] <- 0
++       data$E_count[new_inf] <- 0 
++       
++       # Record time at which infectious period starts.
++       results$TIME[new_inf] <- t
++       
++       # Save the number of susceptible people in each infectious individual's 
++       # household.
++       S_data <- data %>% group_by(HH) %>% 
++         mutate(S_tot = sum(S)) %>% 
++         select(HH, S_tot)
++       results$S_NUM[new_inf == 1] <- S_data$S_tot[new_inf == 1]
++     }
++     
++     # I_H is the number of infections inside each household.
++     # I_C is the number of infections outside each household.
++     I_data <- data %>% group_by(HH) %>% 
++       mutate(I_H = sum(I)) %>% 
++       ungroup() %>% 
++       mutate(I_C = sum(I) - I_H)
++     
++     # Calculate household risk and community risk.
++     beta_H <- params[1]
++     beta_C <- params[2]
++     risk_H <- pmin(beta_H * data$S * I_data$I_H / N, 1)
++     risk_C <- pmin(beta_C * data$S * I_data$I_C / N, 1)
++     
++     # Each individual is infected from their household or community 
++     # independently with probabilities risk_H and risk_C.
++     new_inf_H <- rbinom(N, 1, risk_H)
++     new_inf_C <- rbinom(N, 1, risk_C)
++     
++     new_exposed <- (new_inf_H == 1) | (new_inf_C == 1)
++     num_new_exposed <- sum(new_exposed, na.rm = T)
++     if (num_new_exposed > 0) {
++       # Change status to newly exposed and add incubation period.
++       data$E[new_exposed] <- 1
++       random_inc <- rlnorm(num_new_exposed, meanlog = log(29.8), sdlog = 0.45) %>% round()
++       data$INC[new_exposed] <- random_inc
++       
++       # Remove susceptible status.
++       data$S[new_exposed] <- 0
++       
++       # Get number of new infections in each household.
++       I_data <- I_data %>%
++         select(ID, HH, I, I_H) %>%
++         mutate(new_I_H = new_inf_H) %>%
++         group_by(HH) %>%
++         # Find households with at least 1 currently infectious individual. If 
++         # exactly 1 infectious individual in household, assign all new H 
++         # exposures to that individual. If there are multiple infectious 
++         # individuals, assign all infections to the infectious individual with 
++         # the first ID.
++         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
++                                 sum(new_I_H), 0))
++       
++       results$I_NUM <- results$I_NUM + I_data$new_I_H
++       
++       # Label infection types.
++       results$TYPE[new_inf_C == 1] <- 'C'
++       results$TYPE[new_inf_H == 1] <- 'H'
++       results$TYPE[(new_inf_H == 1) & (new_inf_C == 1)] <- 'HC'
++     }
++     
++     # Increment exposure and infectious counters.
++     data$E_count[data$E == 1] <- data$E_count[data$E == 1] + 1
++     data$I_count[data$I == 1] <- data$I_count[data$I == 1] + 1
++   }
++   return(results)
++ }
+> 
+> metrics <- function(results) {
++   # Incidence is the proportion of the population that became infected.
++   idc <- mean(!is.na(results$TIME))
++   
++   # The SAR is the average SAR for each individual that was infectious.
++   sar <- mean(results$I_NUM / results$S_NUM, na.rm = T)
++ 
++   return(c(idc, sar))
++ }
+> 
+> beta_Hs <- seq(49, 53, 0.1) # 41
+> beta_Cs <- seq(0.13, 0.15, 0.001) #21
+> 
+> d_H <- length(beta_Hs)
+> d_C <- length(beta_Cs)
+> 
+> reps <- 200
+> idcs <- array(rep(NA, d_H * d_C * reps), dim = c(d_H, d_C, reps))
+> sars <- array(rep(NA, d_H * d_C * reps), dim = c(d_H, d_C, reps))
+> t_tot <- 0
+> for (i in 1:d_H) {
++     for (j in 1:d_C) {
++       beta_H <- beta_Hs[i]
++       beta_C <- beta_Cs[j]
++       params <- c(beta_H, beta_C)
++       
++       cat(paste0(format(beta_H, nsmall = 1, digits = 3), '/70.0\t', 
++                  format(beta_C, nsmall = 3, digits = 3), '/0.500\t'))
++ 
++       t_0 <- Sys.time()
++       vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
++         results <- SEIR_p2p(params) 
++         metrics(results)
++       }
++       t_1 <- Sys.time()
++       t_tot <- t_tot + (t_1 - t_0)
++ 
++       cat(paste0(format(t_tot, nsmall = 2, digits = 4), '\t(', 
++                  format(t_1 - t_0, nsmall = 2, digits = 4), ')\t'))
++ 
++       vals <- matrix(vals, reps, byrow = T)
++       idcs[i, j, ] <- vals[, 1]
++       sars[i, j, ] <- vals[, 2]
++ 
++       cat(paste0(format(round(mean(vals[, 1]), 3), nsmall = 3), '\t',
++                  format(round(mean(vals[, 2]), 3), nsmall = 3), '\n'))
++       
++       saveRDS(idcs, file = 'idcs.rds')
++       saveRDS(sars, file = 'sars.rds')
++       write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)
++       write.table(sars, file = 'sars.txt', row.names = F, col.names = F)
++     }
++   message('\n')
++ }
+49.0/70.0	0.130/0.500	1.771 mins	(1.771 mins)	0.250	0.228
+49.0/70.0	0.131/0.500	3.515 mins	(1.744 mins)	0.253	0.239
+49.0/70.0	0.132/0.500	5.324 mins	(1.809 mins)	0.268	0.238
+49.0/70.0	0.133/0.500	6.957 mins	(1.633 mins)	0.254	0.235
+49.0/70.0	0.134/0.500	8.671 mins	(1.714 mins)	0.267	0.244
+49.0/70.0	0.135/0.500	10.29 mins	(1.62 mins)	0.246	0.234
+49.0/70.0	0.136/0.500	11.99 mins	(1.694 mins)	0.258	0.240
+49.0/70.0	0.137/0.500	13.56 mins	(1.573 mins)	0.231	0.219
+49.0/70.0	0.138/0.500	15.31 mins	(1.756 mins)	0.273	0.235
+49.0/70.0	0.139/0.500	17.05 mins	(1.74 mins)	0.281	0.242
+49.0/70.0	0.140/0.500	18.80 mins	(1.746 mins)	0.274	0.230
+49.0/70.0	0.141/0.500	20.58 mins	(1.776 mins)	0.273	0.228
+49.0/70.0	0.142/0.500	22.30 mins	(1.72 mins)	0.300	0.232
+49.0/70.0	0.143/0.500	24.19 mins	(1.888 mins)	0.335	0.245
+49.0/70.0	0.144/0.500	25.98 mins	(1.797 mins)	0.296	0.236
+49.0/70.0	0.145/0.500	27.85 mins	(1.863 mins)	0.321	0.245
+49.0/70.0	0.146/0.500	29.67 mins	(1.823 mins)	0.341	0.255
+49.0/70.0	0.147/0.500	31.54 mins	(1.867 mins)	0.322	0.247
+49.0/70.0	0.148/0.500	33.35 mins	(1.816 mins)	0.319	0.224
+49.0/70.0	0.149/0.500	35.17 mins	(1.819 mins)	0.352	0.241
+49.0/70.0	0.150/0.500	37.03 mins	(1.855 mins)	0.344	0.244
+
+
+49.1/70.0	0.130/0.500	38.69 mins	(1.666 mins)	0.217	0.234
+49.1/70.0	0.131/0.500	40.27 mins	(1.577 mins)	0.212	0.224
+49.1/70.0	0.132/0.500	42.02 mins	(1.756 mins)	0.246	0.236
+49.1/70.0	0.133/0.500	43.72 mins	(1.698 mins)	0.261	0.239
+49.1/70.0	0.134/0.500	45.44 mins	(1.722 mins)	0.254	0.227
+49.1/70.0	0.135/0.500	47.07 mins	(1.63 mins)	0.247	0.233
+49.1/70.0	0.136/0.500	48.78 mins	(1.71 mins)	0.272	0.234
+49.1/70.0	0.137/0.500	50.49 mins	(1.705 mins)	0.263	0.234
+49.1/70.0	0.138/0.500	52.27 mins	(1.786 mins)	0.281	0.231
+49.1/70.0	0.139/0.500	54.12 mins	(1.844 mins)	0.274	0.235
+49.1/70.0	0.140/0.500	55.94 mins	(1.82 mins)	0.316	0.237
+49.1/70.0	0.141/0.500	57.85 mins	(1.907 mins)	0.302	0.236
+49.1/70.0	0.142/0.500	59.62 mins	(1.772 mins)	0.297	0.238
+49.1/70.0	0.143/0.500	61.41 mins	(1.788 mins)	0.290	0.230
+49.1/70.0	0.144/0.500	63.24 mins	(1.838 mins)	0.336	0.253
+49.1/70.0	0.145/0.500	65.13 mins	(1.89 mins)	0.324	0.239
+49.1/70.0	0.146/0.500	66.96 mins	(1.829 mins)	0.331	0.236
+49.1/70.0	0.147/0.500	68.75 mins	(1.79 mins)	0.346	0.246
+49.1/70.0	0.148/0.500	70.67 mins	(1.92 mins)	0.322	0.255
+49.1/70.0	0.149/0.500	72.55 mins	(1.873 mins)	0.347	0.236
+49.1/70.0	0.150/0.500	74.46 mins	(1.917 mins)	0.352	0.242
+
+
+49.2/70.0	0.130/0.500	76.08 mins	(1.62 mins)	0.225	0.241
+49.2/70.0	0.131/0.500	77.77 mins	(1.69 mins)	0.246	0.230
+49.2/70.0	0.132/0.500	79.48 mins	(1.706 mins)	0.244	0.252
+49.2/70.0	0.133/0.500	81.22 mins	(1.736 mins)	0.266	0.241
+49.2/70.0	0.134/0.500	82.91 mins	(1.694 mins)	0.257	0.218
+49.2/70.0	0.135/0.500	84.58 mins	(1.673 mins)	0.240	0.226
+49.2/70.0	0.136/0.500	86.38 mins	(1.799 mins)	0.265	0.240
+49.2/70.0	0.137/0.500	88.07 mins	(1.686 mins)	0.278	0.238
+49.2/70.0	0.138/0.500	89.79 mins	(1.724 mins)	0.273	0.229
+49.2/70.0	0.139/0.500	91.44 mins	(1.653 mins)	0.282	0.230
+49.2/70.0	0.140/0.500	93.22 mins	(1.771 mins)	0.302	0.238
+49.2/70.0	0.141/0.500	95.13 mins	(1.917 mins)	0.305	0.238
+49.2/70.0	0.142/0.500	96.98 mins	(1.851 mins)	0.280	0.232
+49.2/70.0	0.143/0.500	98.76 mins	(1.779 mins)	0.324	0.250
+49.2/70.0	0.144/0.500	100.62 mins	(1.854 mins)	0.309	0.240
+49.2/70.0	0.145/0.500	102.50 mins	(1.887 mins)	0.310	0.223
+49.2/70.0	0.146/0.500	104.20 mins	(1.696 mins)	0.312	0.249
+49.2/70.0	0.147/0.500	106.03 mins	(1.832 mins)	0.331	0.244
+49.2/70.0	0.148/0.500	107.83 mins	(1.796 mins)	0.324	0.233
+49.2/70.0	0.149/0.500	109.73 mins	(1.905 mins)	0.314	0.235
+49.2/70.0	0.150/0.500	111.59 mins	(1.86 mins)	0.335	0.231
+
+
+49.3/70.0	0.130/0.500	113.30 mins	(1.705 mins)	0.238	0.239
+49.3/70.0	0.131/0.500	114.92 mins	(1.627 mins)	0.222	0.241
+49.3/70.0	0.132/0.500	116.66 mins	(1.739 mins)	0.248	0.246
+49.3/70.0	0.133/0.500	118.42 mins	(1.76 mins)	0.242	0.236
+49.3/70.0	0.134/0.500	120.12 mins	(1.695 mins)	0.252	0.242
+49.3/70.0	0.135/0.500	121.84 mins	(1.719 mins)	0.268	0.232
+49.3/70.0	0.136/0.500	123.53 mins	(1.696 mins)	0.255	0.226
+49.3/70.0	0.137/0.500	125.40 mins	(1.865 mins)	0.283	0.250
+49.3/70.0	0.138/0.500	127.08 mins	(1.685 mins)	0.273	0.238
+49.3/70.0	0.139/0.500	128.74 mins	(1.661 mins)	0.276	0.235
+49.3/70.0	0.140/0.500	130.54 mins	(1.792 mins)	0.316	0.241
+49.3/70.0	0.141/0.500	132.30 mins	(1.762 mins)	0.290	0.242
+49.3/70.0	0.142/0.500	134.20 mins	(1.904 mins)	0.299	0.248
+49.3/70.0	0.143/0.500	136.00 mins	(1.796 mins)	0.320	0.248
+49.3/70.0	0.144/0.500	137.72 mins	(1.723 mins)	0.310	0.236
+49.3/70.0	0.145/0.500	139.59 mins	(1.865 mins)	0.308	0.242
+49.3/70.0	0.146/0.500	141.39 mins	(1.801 mins)	0.352	0.262
+49.3/70.0	0.147/0.500	143.22 mins	(1.831 mins)	0.309	0.243
+49.3/70.0	0.148/0.500	144.99 mins	(1.77 mins)	0.314	0.229
+49.3/70.0	0.149/0.500	146.88 mins	(1.89 mins)	0.353	0.247
+49.3/70.0	0.150/0.500	148.73 mins	(1.85 mins)	0.330	0.240
+
+
+49.4/70.0	0.130/0.500	150.29 mins	(1.564 mins)	0.212	0.244
+49.4/70.0	0.131/0.500	151.83 mins	(1.537 mins)	0.209	0.221
+49.4/70.0	0.132/0.500	153.53 mins	(1.702 mins)	0.234	0.241
+49.4/70.0	0.133/0.500	155.37 mins	(1.842 mins)	0.264	0.256
+49.4/70.0	0.134/0.500	157.00 mins	(1.63 mins)	0.224	0.235
+49.4/70.0	0.135/0.500	158.67 mins	(1.668 mins)	0.244	0.255
+49.4/70.0	0.136/0.500	160.35 mins	(1.68 mins)	0.272	0.242
+49.4/70.0	0.137/0.500	162.12 mins	(1.765 mins)	0.289	0.248
+49.4/70.0	0.138/0.500	163.78 mins	(1.665 mins)	0.279	0.241
+49.4/70.0	0.139/0.500	165.51 mins	(1.726 mins)	0.252	0.241
+49.4/70.0	0.140/0.500	167.26 mins	(1.752 mins)	0.301	0.245
+49.4/70.0	0.141/0.500	169.10 mins	(1.838 mins)	0.323	0.244
+49.4/70.0	0.142/0.500	170.92 mins	(1.822 mins)	0.318	0.248
+49.4/70.0	0.143/0.500	172.67 mins	(1.75 mins)	0.294	0.232
+49.4/70.0	0.144/0.500	174.38 mins	(1.711 mins)	0.308	0.230
+49.4/70.0	0.145/0.500	176.17 mins	(1.794 mins)	0.324	0.240
+49.4/70.0	0.146/0.500	178.06 mins	(1.886 mins)	0.335	0.235
+49.4/70.0	0.147/0.500	180.00 mins	(1.936 mins)	0.347	0.244
+49.4/70.0	0.148/0.500	181.81 mins	(1.814 mins)	0.325	0.238
+49.4/70.0	0.149/0.500	183.86 mins	(2.049 mins)	0.337	0.239
+49.4/70.0	0.150/0.500	185.85 mins	(1.995 mins)	0.347	0.242
+
+
+49.5/70.0	0.130/0.500	187.57 mins	(1.72 mins)	0.252	0.244
+49.5/70.0	0.131/0.500	189.17 mins	(1.599 mins)	0.219	0.234
+49.5/70.0	0.132/0.500	190.75 mins	(1.581 mins)	0.240	0.224
+49.5/70.0	0.133/0.500	192.44 mins	(1.691 mins)	0.263	0.250
+49.5/70.0	0.134/0.500	194.00 mins	(1.555 mins)	0.218	0.235
+49.5/70.0	0.135/0.500	195.69 mins	(1.694 mins)	0.269	0.241
+49.5/70.0	0.136/0.500	197.38 mins	(1.688 mins)	0.269	0.238
+49.5/70.0	0.137/0.500	199.20 mins	(1.819 mins)	0.315	0.249
+49.5/70.0	0.138/0.500	200.91 mins	(1.713 mins)	0.276	0.240
+49.5/70.0	0.139/0.500	202.65 mins	(1.743 mins)	0.287	0.248
+49.5/70.0	0.140/0.500	204.48 mins	(1.826 mins)	0.316	0.248
+49.5/70.0	0.141/0.500	206.28 mins	(1.799 mins)	0.302	0.246
+49.5/70.0	0.142/0.500	208.02 mins	(1.741 mins)	0.316	0.240
+49.5/70.0	0.143/0.500	209.91 mins	(1.886 mins)	0.331	0.252
+49.5/70.0	0.144/0.500	211.68 mins	(1.768 mins)	0.305	0.241
+49.5/70.0	0.145/0.500	213.52 mins	(1.845 mins)	0.341	0.248
+49.5/70.0	0.146/0.500	215.31 mins	(1.786 mins)	0.328	0.248
+49.5/70.0	0.147/0.500	217.20 mins	(1.895 mins)	0.328	0.242
+49.5/70.0	0.148/0.500	219.04 mins	(1.836 mins)	0.335	0.241
+49.5/70.0	0.149/0.500	220.94 mins	(1.897 mins)	0.367	0.251
+49.5/70.0	0.150/0.500	222.70 mins	(1.764 mins)	0.348	0.245
+
+
+49.6/70.0	0.130/0.500	224.34 mins	(1.644 mins)	0.254	0.242
+49.6/70.0	0.131/0.500	225.96 mins	(1.62 mins)	0.221	0.231
+49.6/70.0	0.132/0.500	227.67 mins	(1.704 mins)	0.258	0.245
+49.6/70.0	0.133/0.500	229.36 mins	(1.69 mins)	0.259	0.243
+49.6/70.0	0.134/0.500	230.97 mins	(1.613 mins)	0.254	0.243
+49.6/70.0	0.135/0.500	232.59 mins	(1.619 mins)	0.242	0.225
+49.6/70.0	0.136/0.500	234.41 mins	(1.815 mins)	0.279	0.243
+49.6/70.0	0.137/0.500	236.09 mins	(1.688 mins)	0.274	0.240
+49.6/70.0	0.138/0.500	237.77 mins	(1.678 mins)	0.283	0.247
+49.6/70.0	0.139/0.500	239.50 mins	(1.73 mins)	0.299	0.246
+49.6/70.0	0.140/0.500	241.39 mins	(1.887 mins)	0.316	0.250
+49.6/70.0	0.141/0.500	243.03 mins	(1.64 mins)	0.271	0.237
+49.6/70.0	0.142/0.500	244.67 mins	(1.638 mins)	0.258	0.226
+49.6/70.0	0.143/0.500	246.42 mins	(1.75 mins)	0.290	0.242
+49.6/70.0	0.144/0.500	248.08 mins	(1.659 mins)	0.290	0.232
+49.6/70.0	0.145/0.500	249.91 mins	(1.838 mins)	0.333	0.240
+49.6/70.0	0.146/0.500	251.65 mins	(1.737 mins)	0.332	0.238
+49.6/70.0	0.147/0.500	253.44 mins	(1.786 mins)	0.324	0.237
+49.6/70.0	0.148/0.500	255.23 mins	(1.792 mins)	0.336	0.250
+49.6/70.0	0.149/0.500	257.03 mins	(1.804 mins)	0.342	0.236
+49.6/70.0	0.150/0.500	258.96 mins	(1.93 mins)	0.384	0.256
+
+
+49.7/70.0	0.130/0.500	260.58 mins	(1.621 mins)	0.234	0.236
+49.7/70.0	0.131/0.500	262.19 mins	(1.608 mins)	0.244	0.239
+49.7/70.0	0.132/0.500	263.78 mins	(1.593 mins)	0.238	0.228
+49.7/70.0	0.133/0.500	265.38 mins	(1.596 mins)	0.251	0.237
+49.7/70.0	0.134/0.500	267.06 mins	(1.684 mins)	0.259	0.247
+49.7/70.0	0.135/0.500	268.84 mins	(1.777 mins)	0.279	0.241
+49.7/70.0	0.136/0.500	270.49 mins	(1.653 mins)	0.254	0.241
+49.7/70.0	0.137/0.500	

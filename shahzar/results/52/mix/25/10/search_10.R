@@ -196,7 +196,7 @@ d_H <- length(beta_Hs)
 d_C <- length(beta_Cs)
 d_E <- length(beta_Es)
 
-reps <- 50
+reps <- 200
 idcs <- array(rep(NA, d_H * d_C * d_E * reps), dim = c(d_H, d_C, d_E, reps))
 sars <- array(rep(NA, d_H * d_C * d_E * reps), dim = c(d_H, d_C, d_E, reps))
 prps <- array(rep(NA, d_H * d_C * d_E * reps), dim = c(d_H, d_C, d_E, reps))
