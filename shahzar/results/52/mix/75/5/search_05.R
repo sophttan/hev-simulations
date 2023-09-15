@@ -183,7 +183,7 @@ metrics <- function(results) {
   
   # The proportion of cases caused by household infections.
   cases <- results[!is.na(results$TIME), ]
-  prp <- mean((cases$TYPE == 'H') | (cases$TYPE == 'HC') | (cases$TYPE == 'HCE'))
+  prp <- mean((cases$TYPE != 'E') & (cases$TYPE != '0'))
 
   return(c(idc, sar, prp))
 }
