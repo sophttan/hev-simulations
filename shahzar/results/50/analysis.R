@@ -7,7 +7,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 message(detectCores())
-num_cores <- 24
+num_cores <- 32
 registerDoParallel(num_cores)
 
 prp_true <- function(results) {
@@ -133,10 +133,14 @@ values <- function(results) {
 ###############
 
 # 5% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('pan/5/', i, '.csv'))
-  values(results)
+  f <- paste0('pan/5/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/5/vals.rds')
@@ -144,10 +148,14 @@ write.table(vals, file = 'pan/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('pan/10/', i, '.csv'))
-  values(results)
+  f <- paste0('pan/10/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/10/vals.rds')
@@ -155,10 +163,14 @@ write.table(vals, file = 'pan/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('pan/30/', i, '.csv'))
-  values(results)
+  f <- paste0('pan/30/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/30/vals.rds')
@@ -172,10 +184,14 @@ write.table(vals, file = 'pan/30/vals.txt', row.names = F, col.names = F)
 ##############
 
 # 5% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('0/5/', i, '.csv'))
-  values(results)
+  f <- paste0('0/5/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '0/5/vals.rds')
@@ -183,10 +199,14 @@ write.table(vals, file = '0/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('0/10/', i, '.csv'))
-  values(results)
+  f <- paste0('0/10/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '0/10/vals.rds')
@@ -194,10 +214,14 @@ write.table(vals, file = '0/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('0/30/', i, '.csv'))
-  values(results)
+  f <- paste0('0/30/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '0/30/vals.rds')
@@ -211,10 +235,14 @@ write.table(vals, file = '0/30/vals.txt', row.names = F, col.names = F)
 ###############
 
 # 5% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('25/5/', i, '.csv'))
-  values(results)
+  f <- paste0('25/5/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/5/vals.rds')
@@ -222,10 +250,14 @@ write.table(vals, file = '25/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('25/10/', i, '.csv'))
-  values(results)
+  f <- paste0('25/10/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/10/vals.rds')
@@ -233,10 +265,14 @@ write.table(vals, file = '25/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('25/30/', i, '.csv'))
-  values(results)
+  f <- paste0('25/30/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/30/vals.rds')
@@ -250,10 +286,14 @@ write.table(vals, file = '25/30/vals.txt', row.names = F, col.names = F)
 ###############
 
 # 5% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('50/5/', i, '.csv'))
-  values(results)
+  f <- paste0('50/5/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/5/vals.rds')
@@ -261,10 +301,14 @@ write.table(vals, file = '50/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('50/10/', i, '.csv'))
-  values(results)
+  f <- paste0('50/10/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/10/vals.rds')
@@ -272,10 +316,14 @@ write.table(vals, file = '50/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('50/30/', i, '.csv'))
-  values(results)
+  f <- paste0('50/30/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/30/vals.rds')
@@ -289,10 +337,14 @@ write.table(vals, file = '50/30/vals.txt', row.names = F, col.names = F)
 ###############
 
 # 5% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('75/5/', i, '.csv'))
-  values(results)
+  f <- paste0('75/5/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/5/vals.rds')
@@ -300,10 +352,14 @@ write.table(vals, file = '75/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('75/10/', i, '.csv'))
-  values(results)
+  f <- paste0('75/10/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/10/vals.rds')
@@ -311,10 +367,14 @@ write.table(vals, file = '75/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('75/30/', i, '.csv'))
-  values(results)
+  f <- paste0('75/30/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/30/vals.rds')
@@ -328,10 +388,14 @@ write.table(vals, file = '75/30/vals.txt', row.names = F, col.names = F)
 ##############
 
 # 5% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('100/5/', i, '.csv'))
-  values(results)
+  f <- paste0('100/5/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '100/5/vals.rds')
@@ -339,10 +403,14 @@ write.table(vals, file = '100/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('100/10/', i, '.csv'))
-  values(results)
+  f <- paste0('100/10/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '100/10/vals.rds')
@@ -350,10 +418,14 @@ write.table(vals, file = '100/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
-n_sims <- 1000
+n_sims <- 100000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('100/30/', i, '.csv'))
-  values(results)
+  f <- paste0('100/30/', i, '.csv')
+  if (file.exists(f)) {
+    results <- read.csv(f)
+    values(results)
+  }
+  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '100/30/vals.rds')
