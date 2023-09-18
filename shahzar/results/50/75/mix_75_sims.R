@@ -7,7 +7,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 message(detectCores())
-num_cores <- 32
+num_cores <- 24
 registerDoParallel(num_cores)
 
 #########################
@@ -193,58 +193,46 @@ metrics <- function(results) {
 beta_H <- 44
 beta_C <- 0.038
 beta_E <- 0.00003
-params <- c(beta_H, beta_C, beta_E)
-
-n_sims <- 1000
-i <- 1
-j <- 0
-while (i <= n_sims) {
-    results <- SEIR_mix(params)
-    j <- j + 1
-    cat(paste0(j, '\t', i, '\n'))
-    if (all(metrics(results) > c(0.04, 0.73)) & all(metrics(results) < c(0.06, 0.77))) {
-        write.csv(results, file = paste0('5/', i, '.csv'), row.names = F)
-        i <- i + 1
-    }
-}
-cat(paste0('05%:\t', j, '\n'))
+params_05 <- c(beta_H, beta_C, beta_E)
+lo_05 <- c(0.04, 0.73)
+hi_05 <- c(0.06, 0.77)
 
 # 10% Cumulative Incidence
 beta_H <- 42
 beta_C <- 0.035
 beta_E <- 0.00008
-params <- c(beta_H, beta_C, beta_E)
-
-n_sims <- 1000
-i <- 1
-j <- 0
-while (i <= n_sims) {
-    results <- SEIR_mix(params)
-    j <- j + 1
-    cat(paste0(j, '\t', i, '\n'))
-    if (all(metrics(results) > c(0.09, 0.73)) & all(metrics(results) < c(0.11, 0.77))) {
-        write.csv(results, file = paste0('10/', i, '.csv'), row.names = F)
-        i <- i + 1
-    }
-}
-cat(paste0('10%:\t', j, '\n'))
+params_10 <- c(beta_H, beta_C, beta_E)
+lo_10 <- c(0.09, 0.73)
+hi_10 <- c(0.11, 0.77)
 
 # 30% Cumulative Incidence
 beta_H <- 41
 beta_C <- 0.042
 beta_E <- 0.00026
-params <- c(beta_H, beta_C, beta_E)
+params_30 <- c(beta_H, beta_C, beta_E)
+lo_30 <- c(0.29, 0.73)
+hi_30 <- c(0.31, 0.77)
 
-n_sims <- 1000
-i <- 1
-j <- 0
-while (i <= n_sims) {
-    results <- SEIR_mix(params)
-    j <- j + 1
-    cat(paste0(j, '\t', i, '\n'))
-    if (all(metrics(results) > c(0.29, 0.73)) & all(metrics(results) < c(0.31, 0.77))) {
-        write.csv(results, file = paste0('30/', i, '.csv'), row.names = F)
-        i <- i + 1
+
+
+n_sims <- 1000000
+vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
+    results <- SEIR_mix(params_05) 
+    stats <- metrics(results)
+    if (all(stats > lo_05) & all(stats < hi_05)) {
+        write.csv(results, file = paste0('5/', i, '.csv'), row.names = F)
     }
+    
+    results <- SEIR_mix(params_10)
+    stats <- metrics(results)
+    if (all(stats > lo_10) & all(stats < hi_10)) {
+        write.csv(results, file = paste0('10/', i, '.csv'), row.names = F)
+    }
+    
+    results <- SEIR_mix(params_30)
+    stats <- metrics(results)
+    if (all(stats > lo_30) & all(stats < hi_30)) {
+        write.csv(results, file = paste0('30/', i, '.csv'), row.names = F)
+    }
+    stats
 }
-cat(paste0('30%:\t', j, '\n'))
