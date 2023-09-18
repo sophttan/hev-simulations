@@ -180,7 +180,7 @@ metrics <- function(results) {
   return(c(idc))
 }
 
-n_sims <- 1000000
+n_sims <- 100000
 
 # 5% Cumulative Incidence
 beta_H <- 52.5
