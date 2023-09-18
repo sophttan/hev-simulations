@@ -151,7 +151,7 @@ for (i in 1:d_E) {
   beta_E <- beta_Es[i]
   params <- c(beta_E)
 
-  cat(paste0(format(beta_E, nsmall = 3, digits = 3, scientific = F), '/0.2710\t'))
+  cat(paste0(format(beta_E, nsmall = 4, digits = 4, scientific = F), '/0.254\t'))
 
   t_0 <- Sys.time()
   vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
@@ -167,11 +167,12 @@ for (i in 1:d_E) {
   vals <- matrix(vals, reps, byrow = T)
   idcs[i, ] <- vals[, 1]
 
-      cat(paste0(format(round(mean(idcs[i, ]), 3), nsmall = 3), '\t',
-                 format(round(sd(idcs[i, ]), 3), nsmall = 3), '\t',
-                 format(round(mean(idcs[i, idcs[i, ] > 0.01]), 3), nsmall = 3), '\t',
-                 format(round(sd(idcs[i, idcs[i, ] > 0.01]), 3), nsmall = 3), '\t', 
-                 length(idcs[i, idcs[i, ] > 0.01])/1000, '\n'))
+  idx_05 = (idcs[i, ] > 0.04) & (idcs[i, ] < 0.06)
+  idx_10 = (idcs[i, ] > 0.09) & (idcs[i, ] < 0.11)
+  idx_30 = (idcs[i, ] > 0.29) & (idcs[i, ] < 0.31)
+  cat(paste0(format(round(mean(idx_05), 3), nsmall = 3), '\t',
+             format(round(mean(idx_10), 3), nsmall = 3), '\t',
+             format(round(mean(idx_30), 3), nsmall = 3), '\n'))
 
   saveRDS(idcs, file = 'idcs.rds')
   write.table(idcs, file = 'idcs.txt', row.names = F, col.names = F)

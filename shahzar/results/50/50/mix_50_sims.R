@@ -191,8 +191,8 @@ metrics <- function(results) {
 
 # 5% Cumulative Incidence
 beta_H <- 28
-beta_C <- 0.005
-beta_E <- 0.00010
+beta_C <- 0.006
+beta_E <- 0.00008
 params <- c(beta_H, beta_C, beta_E)
 
 n_sims <- 1000
@@ -201,17 +201,18 @@ j <- 0
 while (i <= n_sims) {
     results <- SEIR_mix(params)
     j <- j + 1
-    if (all(metrics(results) > c(0.04, 0.45)) & all(metrics(results) < c(0.06, 0.55))) {
-        write.csv(results, file = paste0('50/5/', i, '.csv'), row.names = F)
+    cat(paste0(j, '\t', i, '\n'))
+    if (all(metrics(results) > c(0.04, 0.48)) & all(metrics(results) < c(0.06, 0.52))) {
+        write.csv(results, file = paste0('5/', i, '.csv'), row.names = F)
         i <- i + 1
     }
 }
 cat(paste0('05%:\t', j, '\n'))
 
 # 10% Cumulative Incidence
-beta_H <- 27
+beta_H <- 29
 beta_C <- 0.005
-beta_E <- 0.00015
+beta_E <- 0.00016
 params <- c(beta_H, beta_C, beta_E)
 
 n_sims <- 1000
@@ -220,7 +221,8 @@ j <- 0
 while (i <= n_sims) {
     results <- SEIR_mix(params)
     j <- j + 1
-    if (all(metrics(results) > c(0.09, 0.45)) & all(metrics(results) < c(0.11, 0.55))) {
+    cat(paste0(j, '\t', i, '\n'))
+    if (all(metrics(results) > c(0.09, 0.48)) & all(metrics(results) < c(0.11, 0.52))) {
         write.csv(results, file = paste0('10/', i, '.csv'), row.names = F)
         i <- i + 1
     }
@@ -228,9 +230,9 @@ while (i <= n_sims) {
 cat(paste0('10%:\t', j, '\n'))
 
 # 30% Cumulative Incidence
-beta_H <- 29
-beta_C <- 0.010
-beta_E <- 0.00055
+beta_H <- 28
+beta_C <- 0.012
+beta_E <- 0.00053
 params <- c(beta_H, beta_C, beta_E)
 
 n_sims <- 1000
@@ -239,7 +241,8 @@ j <- 0
 while (i <= n_sims) {
     results <- SEIR_mix(params)
     j <- j + 1
-    if (all(metrics(results) > c(0.29, 0.45)) & all(metrics(results) < c(0.31, 0.55))) {
+    cat(paste0(j, '\t', i, '\n'))
+    if (all(metrics(results) > c(0.29, 0.48)) & all(metrics(results) < c(0.31, 0.52))) {
         write.csv(results, file = paste0('30/', i, '.csv'), row.names = F)
         i <- i + 1
     }

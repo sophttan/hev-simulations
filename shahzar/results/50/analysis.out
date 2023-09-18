@@ -157,7 +157,7 @@ Loading required package: parallel
 +     R <- R + probs
 +     R_HH <- R_HH + HH_probs
 +   }
-+   return(mean(R_HH) / mean(R))
++   return(mean(R_HH / R, na.rm = T))
 + }
 > 
 > values <- function(results) {
@@ -200,6 +200,48 @@ Loading required package: parallel
 > saveRDS(vals, file = 'pan/30/vals.rds')
 > write.table(vals, file = 'pan/30/vals.txt', row.names = F, col.names = F)
 > 
+> 
+> 
+> 
+> ##############
+> ### Pure E ###
+> ##############
+> 
+> # 5% Cumulative Incidence
+> n_sims <- 1000
+> vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
++   results <- read.csv(paste0('0/5/', i, '.csv'))
++   values(results)
++ }
+> vals <- matrix(vals, n_sims, byrow = T)
+> saveRDS(vals, file = '0/5/vals.rds')
+> write.table(vals, file = '0/5/vals.txt', row.names = F, col.names = F)
+> 
+> 
+> # 10% Cumulative Incidence
+> n_sims <- 1000
+> vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
++   results <- read.csv(paste0('0/10/', i, '.csv'))
++   values(results)
++ }
+> vals <- matrix(vals, n_sims, byrow = T)
+> saveRDS(vals, file = '0/10/vals.rds')
+> write.table(vals, file = '0/10/vals.txt', row.names = F, col.names = F)
+> 
+> 
+> # 30% Cumulative Incidence
+> n_sims <- 1000
+> vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
++   results <- read.csv(paste0('0/30/', i, '.csv'))
++   values(results)
++ }
+> vals <- matrix(vals, n_sims, byrow = T)
+> saveRDS(vals, file = '0/30/vals.rds')
+> write.table(vals, file = '0/30/vals.txt', row.names = F, col.names = F)
+> 
+> 
+> 
+> 
 > ###############
 > ##  25% P2P  ##
 > ###############
@@ -235,6 +277,9 @@ Loading required package: parallel
 > vals <- matrix(vals, n_sims, byrow = T)
 > saveRDS(vals, file = '25/30/vals.rds')
 > write.table(vals, file = '25/30/vals.txt', row.names = F, col.names = F)
+> 
+> 
+> 
 > 
 > ###############
 > ##  50% P2P  ##
@@ -272,6 +317,9 @@ Loading required package: parallel
 > saveRDS(vals, file = '50/30/vals.rds')
 > write.table(vals, file = '50/30/vals.txt', row.names = F, col.names = F)
 > 
+> 
+> 
+> 
 > ###############
 > ##  75% P2P  ##
 > ###############
@@ -307,6 +355,9 @@ Loading required package: parallel
 > vals <- matrix(vals, n_sims, byrow = T)
 > saveRDS(vals, file = '75/30/vals.rds')
 > write.table(vals, file = '75/30/vals.txt', row.names = F, col.names = F)
+> 
+> 
+> 
 > 
 > ##############
 > ## 100% P2P ##
@@ -346,4 +397,4 @@ Loading required package: parallel
 > 
 > proc.time()
      user    system   elapsed 
-27699.305    62.135  1217.994 
+33160.478    71.407  1452.951 

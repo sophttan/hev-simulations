@@ -121,7 +121,7 @@ method_R <- function(results) {
     R <- R + probs
     R_HH <- R_HH + HH_probs
   }
-  return(mean(R_HH) / mean(R))
+  return(mean(R_HH / R, na.rm = T))
 }
 
 values <- function(results) {
@@ -174,34 +174,34 @@ write.table(vals, file = 'pan/30/vals.txt', row.names = F, col.names = F)
 # 5% Cumulative Incidence
 n_sims <- 1000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('env/5/', i, '.csv'))
+  results <- read.csv(paste0('0/5/', i, '.csv'))
   values(results)
 }
 vals <- matrix(vals, n_sims, byrow = T)
-saveRDS(vals, file = 'env/5/vals.rds')
-write.table(vals, file = 'env/5/vals.txt', row.names = F, col.names = F)
+saveRDS(vals, file = '0/5/vals.rds')
+write.table(vals, file = '0/5/vals.txt', row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
 n_sims <- 1000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('env/10/', i, '.csv'))
+  results <- read.csv(paste0('0/10/', i, '.csv'))
   values(results)
 }
 vals <- matrix(vals, n_sims, byrow = T)
-saveRDS(vals, file = 'env/10/vals.rds')
-write.table(vals, file = 'env/10/vals.txt', row.names = F, col.names = F)
+saveRDS(vals, file = '0/10/vals.rds')
+write.table(vals, file = '0/10/vals.txt', row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
 n_sims <- 1000
 vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
-  results <- read.csv(paste0('env/30/', i, '.csv'))
+  results <- read.csv(paste0('0/30/', i, '.csv'))
   values(results)
 }
 vals <- matrix(vals, n_sims, byrow = T)
-saveRDS(vals, file = 'env/30/vals.rds')
-write.table(vals, file = 'env/30/vals.txt', row.names = F, col.names = F)
+saveRDS(vals, file = '0/30/vals.rds')
+write.table(vals, file = '0/30/vals.txt', row.names = F, col.names = F)
 
 
 

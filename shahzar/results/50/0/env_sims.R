@@ -149,6 +149,7 @@ j <- 0
 while (i <= n_sims) {
     results <- SEIR_env(params)
     j <- j + 1
+    cat(paste0(j, '\t', i, '\n'))
     if (metrics(results) > 0.04 & metrics(results) < 0.06) {
         write.csv(results, file = paste0('5/', i, '.csv'), row.names = F)
         i <- i + 1
@@ -166,6 +167,7 @@ j <- 0
 while (i <= n_sims) {
     results <- SEIR_env(params)
     j <- j + 1
+    cat(paste0(j, '\t', i, '\n'))
     if (metrics(results) > 0.09 & metrics(results) < 0.11) {
         write.csv(results, file = paste0('10/', i, '.csv'), row.names = F)
         i <- i + 1
@@ -183,6 +185,7 @@ j <- 0
 while (i <= n_sims) {
     results <- SEIR_env(params)
     j <- j + 1
+    cat(paste0(j, '\t', i, '\n'))
     if (metrics(results) > 0.29 & metrics(results) < 0.31) {
         write.csv(results, file = paste0('30/', i, '.csv'), row.names = F)
         i <- i + 1
