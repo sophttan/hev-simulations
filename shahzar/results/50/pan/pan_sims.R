@@ -145,8 +145,8 @@ metrics <- function(results) {
 beta_E <- 0.1669
 params <- c(beta_E)
 
-n_sims <- 1000
-i <- 1
+n_sims <- 2500
+i <- 1001
 j <- 0
 while (i <= n_sims) {
     results <- SEIR_pan(params)
@@ -163,8 +163,8 @@ cat(paste0('05%:\t', j, '\n'))
 beta_E <- 0.1980
 params <- c(beta_E)
 
-n_sims <- 1000
-i <- 1
+n_sims <- 2500
+i <- 1001
 j <- 0
 while (i <= n_sims) {
     results <- SEIR_pan(params)
@@ -181,8 +181,8 @@ cat(paste0('10%:\t', j, '\n'))
 beta_E <- 0.2525
 params <- c(beta_E)
 
-n_sims <- 1000
-i <- 1
+n_sims <- 2500
+i <- 1001
 j <- 0
 while (i <= n_sims) {
     results <- SEIR_pan(params)
