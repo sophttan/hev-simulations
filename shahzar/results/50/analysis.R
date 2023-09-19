@@ -139,8 +139,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/5/vals.rds')
@@ -154,8 +155,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/10/vals.rds')
@@ -169,8 +171,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = 'pan/30/vals.rds')
@@ -190,8 +193,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '0/5/vals.rds')
@@ -205,8 +209,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '0/10/vals.rds')
@@ -220,8 +225,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '0/30/vals.rds')
@@ -241,8 +247,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/5/vals.rds')
@@ -256,8 +263,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/10/vals.rds')
@@ -271,8 +279,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '25/30/vals.rds')
@@ -292,8 +301,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/5/vals.rds')
@@ -307,8 +317,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/10/vals.rds')
@@ -322,8 +333,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '50/30/vals.rds')
@@ -342,9 +354,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   f <- paste0('75/5/', i, '.csv')
   if (file.exists(f)) {
     results <- read.csv(f)
-    values(results)
+     else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/5/vals.rds')
@@ -357,9 +369,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   f <- paste0('75/10/', i, '.csv')
   if (file.exists(f)) {
     results <- read.csv(f)
-    values(results)
+     else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/10/vals.rds')
@@ -373,8 +385,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '75/30/vals.rds')
@@ -394,8 +407,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '100/5/vals.rds')
@@ -409,8 +423,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '100/10/vals.rds')
@@ -424,8 +439,9 @@ vals <- foreach (i = 1:n_sims, .combine = 'c') %dopar% {
   if (file.exists(f)) {
     results <- read.csv(f)
     values(results)
+  } else {
+      c(-1, -1, -1)
   }
-  c(-1, -1, -1)
 }
 vals <- matrix(vals, n_sims, byrow = T)
 saveRDS(vals, file = '100/30/vals.rds')
