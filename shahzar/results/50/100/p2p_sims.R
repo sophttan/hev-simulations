@@ -69,11 +69,11 @@ SEIR_p2p <- function(params, inf = 7, verbose = F) {
   # HH: ID of individual's household.
   # TYPE: the kind of infection: household (H), community (C), or both (B).
   # TIME: when the individual became infectious.
-  # S_num: number of susceptible people in individual's household when their 
+  # S_NUM: number of susceptible people in individual's household when their 
   #        infectious period begins.
-  # I_num: number of people in household that this individual infected over 
+  # I_NUM: number of people in household that this individual infected over 
   #        their infectious period.
-  results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_num = NA, I_num = 0)
+  results <- data[, 1:3] %>% mutate(TYPE = NA, TIME = NA, S_NUM = NA, I_NUM = 0)
   results$TYPE[1] <- '0'
   
   for(t in 1:time) {
@@ -114,7 +114,7 @@ SEIR_p2p <- function(params, inf = 7, verbose = F) {
       S_data <- data %>% group_by(HH) %>% 
         mutate(S_tot = sum(S)) %>% 
         select(HH, S_tot)
-      results$S_num[new_inf == 1] <- S_data$S_tot[new_inf == 1]
+      results$S_NUM[new_inf == 1] <- S_data$S_tot[new_inf == 1]
     }
     
     # I_H is the number of infections inside each household.
@@ -159,7 +159,7 @@ SEIR_p2p <- function(params, inf = 7, verbose = F) {
         mutate(new_I_H = ifelse(I == 1 & ID == first(ID[I == 1]), 
                                 sum(new_I_H), 0))
       
-      results$I_num <- results$I_num + I_data$new_I_H
+      results$I_NUM <- results$I_NUM + I_data$new_I_H
       
       # Label infection types.
       results$TYPE[new_inf_C == 1] <- 'C'
