@@ -5,6 +5,10 @@ library(readr)
 library(foreach)
 library(doParallel)
 
+message(detectCores())
+num_cores <- 32
+registerDoParallel(num_cores)
+
 ###############
 ## Panmictic ##
 ###############
