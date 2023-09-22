@@ -7,7 +7,7 @@ library(doParallel)
 
 # Set up the number of cores used for parallelization.
 message(detectCores())
-num_cores <- 32
+num_cores <- 24
 registerDoParallel(num_cores)
 
 prp_true <- function(results) {
