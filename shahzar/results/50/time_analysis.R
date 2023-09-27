@@ -143,8 +143,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '5/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -158,8 +159,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '10/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -173,8 +175,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '30/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -195,8 +198,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '5/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -210,8 +214,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '10/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -225,8 +230,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '30/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -247,8 +253,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '5/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -262,8 +269,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '10/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -277,8 +285,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '30/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -300,8 +309,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '5/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -315,8 +325,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '10/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -330,8 +341,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '30/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -353,8 +365,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '5/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -368,8 +381,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '10/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -383,8 +397,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '30/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -406,8 +421,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '5/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -421,8 +437,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '10/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
@@ -436,8 +453,9 @@ n_sims <- 2500
 vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   f <- paste0(dir, '30/', i, '.csv')
   results <- read.csv(f)
-  time_vals <- foreach (t = 1:365, .combine = 'rbind') %dopar% {
-    values(results %>% filter(TIME <= t))
+  time_vals <- array(NA, dim = c(365, 3))
+  for (t in 1:365) {
+    time_vals[t, ] <- values(results %>% filter(TIME <= t))
   }
   time_vals
 }
