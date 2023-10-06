@@ -183,8 +183,8 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
-beta_Hs <- seq(49, 53, 0.1) # 41
-beta_Cs <- seq(0.091, 0.11, 0.001) #20
+beta_Hs <- seq(38, 42, 0.1) # 41
+beta_Cs <- seq(0.09, 0.11, 0.001) #20
 
 d_H <- length(beta_Hs)
 d_C <- length(beta_Cs)
@@ -199,8 +199,8 @@ for (i in 1:d_H) {
       beta_C <- beta_Cs[j]
       params <- c(beta_H, beta_C)
       
-      cat(paste0(format(beta_H, nsmall = 1, digits = 3), '/70.0\t', 
-                 format(beta_C, nsmall = 3, digits = 3), '/0.500\t'))
+      cat(paste0(format(beta_H, nsmall = 1, digits = 3), '/42.0\t', 
+                 format(beta_C, nsmall = 3, digits = 3), '/0.110\t'))
 
       t_0 <- Sys.time()
       vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
@@ -217,8 +217,8 @@ for (i in 1:d_H) {
       idcs[i, j, ] <- vals[, 1]
       sars[i, j, ] <- vals[, 2]
 
-      cat(paste0(format(round(mean(vals[, 1]), 3), nsmall = 3), '\t',
-                 format(round(mean(vals[, 2]), 3), nsmall = 3), '\n'))
+      cat(paste0(format(round(mean(idcs[i, ]), 3), nsmall = 3), '\t',
+                 format(round(mean(idcs[i, idcs[i, ] > 0.01]), 3), nsmall = 3), '\n'))
       
       saveRDS(idcs, file = 'idcs.rds')
       saveRDS(sars, file = 'sars.rds')
