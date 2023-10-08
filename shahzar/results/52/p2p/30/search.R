@@ -184,7 +184,7 @@ metrics <- function(results) {
 }
 
 beta_Hs <- seq(38, 42, 0.1) # 41
-beta_Cs <- seq(0.111, 0.13, 0.001) #21
+beta_Cs <- seq(0.111, 0.13, 0.001) #20
 
 d_H <- length(beta_Hs)
 d_C <- length(beta_Cs)
@@ -217,8 +217,10 @@ for (i in 1:d_H) {
       idcs[i, j, ] <- vals[, 1]
       sars[i, j, ] <- vals[, 2]
 
-      cat(paste0(format(round(mean(idcs[i, ]), 3), nsmall = 3), '\t',
-                 format(round(mean(idcs[i, idcs[i, ] > 0.01]), 3), nsmall = 3), '\n'))
+      cat(paste0(format(round(mean(idcs[i, j, ]), 3), nsmall = 3), '\t',
+                 format(round(mean(idcs[i, j, idcs[i, j, ] > 10/1000]), 3), nsmall = 3), '\t',
+                 format(round(mean(sars[i, j, ]), 3), nsmall = 3), '\t', 
+                 format(round(mean(sars[i, j, idcs[i, j, ] > 10/1000]), 3), nsmall = 3), '\n'))
       
       saveRDS(idcs, file = 'idcs.rds')
       saveRDS(sars, file = 'sars.rds')

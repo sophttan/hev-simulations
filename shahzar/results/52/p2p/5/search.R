@@ -200,7 +200,7 @@ for (i in 1:d_H) {
       params <- c(beta_H, beta_C)
       
       cat(paste0(format(beta_H, nsmall = 1, digits = 3), '/43.0\t', 
-                 format(beta_C, nsmall = 2, digits = 3), '/0.09\t'))
+                 format(beta_C, nsmall = 3, digits = 3), '/0.090\t'))
 
       t_0 <- Sys.time()
       vals <- foreach (l = 1:reps, .combine = 'c') %dopar% {
@@ -217,8 +217,10 @@ for (i in 1:d_H) {
       idcs[i, j, ] <- vals[, 1]
       sars[i, j, ] <- vals[, 2]
 
-      cat(paste0(format(round(mean(idcs[i, ]), 3), nsmall = 3), '\t',
-                 format(round(mean(idcs[i, idcs[i, ] > 10/1000]), 3), nsmall = 3), '\n'))
+      cat(paste0(format(round(mean(idcs[i, j, ]), 3), nsmall = 3), '\t',
+                 format(round(mean(idcs[i, j, idcs[i, j, ] > 10/1000]), 3), nsmall = 3), '\t',
+                 format(round(mean(sars[i, j, ]), 3), nsmall = 3), '\t', 
+                 format(round(mean(sars[i, j, idcs[i, j, ] > 10/1000]), 3), nsmall = 3), '\n'))
       
       saveRDS(idcs, file = 'idcs.rds')
       saveRDS(sars, file = 'sars.rds')
