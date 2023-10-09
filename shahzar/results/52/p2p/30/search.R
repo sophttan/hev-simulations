@@ -183,8 +183,8 @@ metrics <- function(results) {
   return(c(idc, sar))
 }
 
-beta_Hs <- seq(38, 42, 0.1) # 41
-beta_Cs <- seq(0.111, 0.13, 0.001) #20
+beta_Hs <- seq(42, 50, 0.2) # 41
+beta_Cs <- seq(0.11, 0.15, 0.002) #20
 
 d_H <- length(beta_Hs)
 d_C <- length(beta_Cs)
