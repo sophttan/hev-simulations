@@ -218,9 +218,9 @@ for (i in 1:d_H) {
       sars[i, j, ] <- vals[, 2]
 
       cat(paste0(format(round(mean(idcs[i, j, ]), 3), nsmall = 3), '\t',
-                 format(round(mean(idcs[i, j, idcs[i, j, ] > 10/1000]), 3), nsmall = 3), '\t',
+                 format(round(mean(idcs[i, j, idcs[i, j, ] > 0.04 & idcs[i, j, ] < 0.06]), 3), nsmall = 3), '\t',
                  format(round(mean(sars[i, j, ]), 3), nsmall = 3), '\t', 
-                 format(round(mean(sars[i, j, idcs[i, j, ] > 10/1000]), 3), nsmall = 3), '\n'))
+                 format(round(mean(sars[i, j, idcs[i, j, ] > 0.04 & idcs[i, j, ] < 0.06]), 3), nsmall = 3), '\n'))
       
       saveRDS(idcs, file = 'idcs.rds')
       saveRDS(sars, file = 'sars.rds')
