@@ -231,3 +231,7 @@ Loading required package: parallel
 +     }
 +     idcs
 + }
+> 
+> proc.time()
+      user     system    elapsed 
+657084.510   9074.298  30245.936 

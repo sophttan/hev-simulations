@@ -1,0 +1,87 @@
+
+R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284765 15.3     664565 35.5   464468 24.9
+Vcells 490458  3.8    8388608 64.0  1837328 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(readr)
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> message(detectCores())
+24
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> ##########
+> ## 100% ##
+> ##########
+> 
+> j <- 1
+> for (i in 1:100000) {
++     ld <- paste0('5/', i, '.csv')
++     if (file.exists(ld)) {
++         results <- read.csv(ld)
++         sv <- paste0('5_clean/', j, '.csv')
++         write.csv(results, file = sv, row.names = F)
++         j <- j + 1
++     }
++ }
+> 
+> j <- 1
+> for (i in 1:100000) {
++     ld <- paste0('10/', i, '.csv')
++     if (file.exists(ld)) {
++         results <- read.csv(ld)
++         sv <- paste0('10_clean/', j, '.csv')
++         write.csv(results, file = sv, row.names = F)
++         j <- j + 1
++     }
++ }
+> 
+> j <- 1
+> for (i in 1:100000) {
++     ld <- paste0('30/', i, '.csv')
++     if (file.exists(ld)) {
++         results <- read.csv(ld)
++         sv <- paste0('30_clean/', j, '.csv')
++         write.csv(results, file = sv, row.names = F)
++         j <- j + 1
++     }
++ }
+> 
+> proc.time()
+   user  system elapsed 
+212.101  32.261 631.526 
