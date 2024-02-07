@@ -3,3 +3,4 @@
 51. hybrid and full person-to-person calibrations.
 52. calibrations for all models.
 53. simulations but with delay and partially observed cases.
+54. adjusting for the shrinkage effect of the reproduction number method.

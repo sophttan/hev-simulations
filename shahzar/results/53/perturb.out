@@ -1,0 +1,361 @@
+
+R version 4.3.0 (2023-04-21) -- "Already Tomorrow"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284765 15.3     664565 35.5   464468 24.9
+Vcells 490458  3.8    8388608 64.0  1837328 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(readr)
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> message(detectCores())
+32
+> num_cores <- 32
+> registerDoParallel(num_cores)
+> 
+> ###############
+> ## Panmictic ##
+> ###############
+> 
+> dir <- 'pan/'
+> 
+> # 5% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 10% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+>             
+> # 30% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> 
+> ########
+> ## 0% ##
+> ########
+> 
+> dir <- '0/'
+> 
+> # 5% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 10% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 30% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> 
+> #########
+> ## 25% ##
+> #########
+> 
+> dir <- '25/'
+> 
+> # 5% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 10% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 30% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> 
+> #########
+> ## 50% ##
+> #########
+> 
+> dir <- '50/'
+> 
+> # 5% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 10% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 30% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+>    
+> #########
+> ## 75% ##
+> #########
+> 
+> dir <- '75/'
+> 
+> # 5% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 10% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 30% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+>   
+> ##########
+> ## 100% ##
+> ##########
+> 
+> dir <- '100/'
+> 
+> # 5% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 10% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> 
+> # 30% Incidence
+> n_sims <- 2500
+> obs <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   
++   detected <- rbinom(1000, 1, 0.5)
++   detect_time <- round(runif(1000, -0.5, 7.5))
++   observation_time <- ifelse(detected, detect_time, NA)
++   results$TIME <- results$TIME + observation_time
++   
++   write.csv(results, file = f, row.names = F)
++ }
+> 
+> proc.time()
+   user  system elapsed 
+572.309 119.617  72.389 

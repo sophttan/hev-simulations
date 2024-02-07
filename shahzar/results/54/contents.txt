@@ -1,0 +1,2 @@
+vals_XX.txt: has method_R values for rel_p_hh = 1, 2, 5
+vals_XX_idc.txt: has method_R values for rel_p_hh = 1/(1 - idc)
