@@ -1,0 +1,156 @@
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284832 15.3     664588 35.5   464580 24.9
+Vcells 490571  3.8    8388608 64.0  1837406 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(readr)
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> message(detectCores())
+32
+> num_cores <- 32
+> registerDoParallel(num_cores)
+> 
+> probability <- function(cases, index, rel_p_hh = 1) {
++   inc_prim <- cases$TIME
++   inc_sec <- cases$TIME[index]
++   hh_prim <- cases$HH
++   hh_sec <- cases$HH[index]
++   # calculate relative likelihood that primary case caused secondary case based on their incidences
++   # serial interval is approximate
++   # try scaling rel_p_hh - 1/incidence or 2, 5, 10
++   results <- (rel_p_hh * (hh_prim == hh_sec) + (hh_prim != hh_sec)) * dnorm(inc_sec - inc_prim, mean = 31.5, sd = 4)
++   # if primary case happens after secondary case, set probability to 0
++   results[inc_prim >= inc_sec] <- 0
++   if(sum(results) == 0){
++     return(results)
++   }
++   
++   return(results/sum(results))
++ }
+> 
+> method_R <- function(results, rel_p_hh = 1) {
++   cases <- results %>% filter(!is.na(TIME))
++   if (nrow(cases) < 1) { 
++     return(NaN)  
++   }
++   
++   cases <- cases %>%
++     mutate(ID = 1:n())
++   
++   R <- rep(0, nrow(cases))
++   R_HH <- rep(0, nrow(cases))
++   
++   for (k in 1:nrow(cases)) {
++     probs <- probability(cases, k, rel_p_hh)
++     HH_probs <- probs
++     HH_probs[cases$HH != cases$HH[k]] <- 0
++     R <- R + probs
++     R_HH <- R_HH + HH_probs
++   }
++   # R_HH = c * R_HH where c depends on the incidence  
++   #return(c(mean(R_HH), mean(R), mean(R_HH / R, na.rm = T)))
++   #return(mean(R_HH / R, na.rm = T))
++   return(c(mean(R_HH), mean(R)))
++ }
+> 
+> #values <- function(results) {
+> #  return(c(method_R(results, rel_p_hh = ), method_R(results, rel_p_hh = 2), method_R(results, rel_p_hh = 5)))
+> #}
+> 
+> values <- function(results) {
++   return(method_R(results))
++ }
+> 
+> #############
+> ## 25% P2P ##
+> ##############
+> 
+> save_dir <- '25/'
+> file_dir <- '../50/25/'
+> 
+> # 5% Cumulative Incidence
+> n_sims <- 2500
+> vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(file_dir, '5/', i, '.csv')
++   results <- read.csv(f)
++   time_vals <- array(NA, dim = c(365, 2))
++   for (t in 1:365) {
++     time_vals[t, ] <- values(results %>% filter(TIME <= t))
++   }
++   time_vals
++ }
+> vals <- aperm(array(vals, dim = c(365, 2500, 2)), c(2, 1, 3))
+> saveRDS(vals, file = paste0(save_dir, 'R_HH_t_05.rds'))
+> write.table(vals, file = paste0(save_dir, 'R_HH_t_05.txt'), row.names = F, col.names = F)
+> 
+> 
+> # 10% Cumulative Incidence
+> n_sims <- 2500
+> vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(file_dir, '10/', i, '.csv')
++   results <- read.csv(f)
++   time_vals <- array(NA, dim = c(365, 2))
++   for (t in 1:365) {
++     time_vals[t, ] <- values(results %>% filter(TIME <= t))
++   }
++   time_vals
++ }
+> vals <- aperm(array(vals, dim = c(365, 2500, 2)), c(2, 1, 3))
+> saveRDS(vals, file = paste0(save_dir, 'R_HH_t_10.rds'))
+> write.table(vals, file = paste0(save_dir, 'R_HH_t_10.txt'), row.names = F, col.names = F)
+> 
+> 
+> # 30% Cumulative Incidence
+> n_sims <- 2500
+> vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
++   f <- paste0(file_dir, '30/', i, '.csv')
++   results <- read.csv(f)
++   time_vals <- array(NA, dim = c(365, 2))
++   for (t in 1:365) {
++     time_vals[t, ] <- values(results %>% filter(TIME <= t))
++   }
++   time_vals
++ }
+> vals <- aperm(array(vals, dim = c(365, 2500, 2)), c(2, 1, 3))
+> saveRDS(vals, file = paste0(save_dir, 'R_HH_t_30.rds'))
+> write.table(vals, file = paste0(save_dir, 'R_HH_t_30.txt'), row.names = F, col.names = F)
+> 
+> proc.time()
+     user    system   elapsed 
+36374.493    76.774  1191.139 
