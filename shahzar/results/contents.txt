@@ -4,3 +4,6 @@
 52. calibrations for all models.
 53. simulations but with delay and partially observed cases.
 54. adjusting for the shrinkage effect of the reproduction number method.
+55. computing just R_HH and R and seeing how they change over time
+56. adjusting the R_HH calculation to be like the serial interval calculation
+57. 

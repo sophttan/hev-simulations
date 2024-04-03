@@ -1,0 +1,6 @@
+26 March 2024
+- Fix the bug causing R_HH and R to be the same.
+- Plot against household fraction method to see if there's any difference. That is, look at household fraction over time. 
+- R_HH, R_HH/R, and household fraction over time. 
+- Other scenarios where this may be complicated, such as sampling of cases. Anything which might differentiate these at all would be helpful. 
+- Try Longini method. Try other rel_p_hh weights.
