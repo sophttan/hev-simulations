@@ -45,11 +45,16 @@ method_R <- function(results, rel_p_hh = 1) {
   }
   # R_HH = c * R_HH where c depends on the incidence  
   #return(c(mean(R_HH), mean(R), mean(R_HH / R, na.rm = T)))
-  return(mean(R_HH / R, na.rm = T))
+  #return(mean(R_HH / R, na.rm = T))
+  return(mean(R))
 }
 
-values <- function(results) {
-  return(c(method_R(results, rel_p_hh = 1), method_R(results, rel_p_hh = 2), method_R(results, rel_p_hh = 5)))
+#values <- function(results) {
+#  return(c(method_R(results, rel_p_hh = ), method_R(results, rel_p_hh = 2), method_R(results, rel_p_hh = 5)))
+#}
+
+values <- function(results, idc) {
+  return(method_R(results))
 }
 
 ###############
@@ -67,8 +72,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_05.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_05.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_05.rds'))
+write.table(vals, file = paste0(save_dir, 'R_05.txt'), row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -79,8 +84,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_10.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_10.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_10.rds'))
+write.table(vals, file = paste0(save_dir, 'R_10.txt'), row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -91,8 +96,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_30.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_30.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_30.rds'))
+write.table(vals, file = paste0(save_dir, 'R_30.txt'), row.names = F, col.names = F)
 
 
 
@@ -112,8 +117,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_05.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_05.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_05.rds'))
+write.table(vals, file = paste0(save_dir, 'R_05.txt'), row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -124,8 +129,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_10.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_10.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_10.rds'))
+write.table(vals, file = paste0(save_dir, 'R_10.txt'), row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -136,8 +141,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_30.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_30.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_30.rds'))
+write.table(vals, file = paste0(save_dir, 'R_30.txt'), row.names = F, col.names = F)
 
 
 
@@ -157,8 +162,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_05.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_05.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_05.rds'))
+write.table(vals, file = paste0(save_dir, 'R_05.txt'), row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -169,8 +174,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_10.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_10.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_10.rds'))
+write.table(vals, file = paste0(save_dir, 'R_10.txt'), row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -181,9 +186,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_30.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_30.txt'), row.names = F, col.names = F)
-
+saveRDS(vals, file = paste0(save_dir, 'R_30.rds'))
+write.table(vals, file = paste0(save_dir, 'R_30.txt'), row.names = F, col.names = F)
 
 
 
@@ -202,8 +206,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_05.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_05.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_05.rds'))
+write.table(vals, file = paste0(save_dir, 'R_05.txt'), row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -214,8 +218,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_10.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_10.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_10.rds'))
+write.table(vals, file = paste0(save_dir, 'R_10.txt'), row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -226,8 +230,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_30.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_30.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_30.rds'))
+write.table(vals, file = paste0(save_dir, 'R_30.txt'), row.names = F, col.names = F)
 
 
 
@@ -247,8 +251,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_05.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_05.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_05.rds'))
+write.table(vals, file = paste0(save_dir, 'R_05.txt'), row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -259,8 +263,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_10.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_10.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_10.rds'))
+write.table(vals, file = paste0(save_dir, 'R_10.txt'), row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -271,8 +275,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_30.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_30.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_30.rds'))
+write.table(vals, file = paste0(save_dir, 'R_30.txt'), row.names = F, col.names = F)
 
 
 
@@ -292,8 +296,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_05.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_05.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_05.rds'))
+write.table(vals, file = paste0(save_dir, 'R_05.txt'), row.names = F, col.names = F)
 
 
 # 10% Cumulative Incidence
@@ -304,8 +308,8 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_10.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_10.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_10.rds'))
+write.table(vals, file = paste0(save_dir, 'R_10.txt'), row.names = F, col.names = F)
 
 
 # 30% Cumulative Incidence
@@ -316,5 +320,24 @@ vals <- foreach (i = 1:n_sims, .combine = 'rbind') %dopar% {
   values(results)
 }
 vals <- matrix(vals, ncol = dim(vals)[2])
-saveRDS(vals, file = paste0(save_dir, 'vals_30.rds'))
-write.table(vals, file = paste0(save_dir, 'vals_30.txt'), row.names = F, col.names = F)
+saveRDS(vals, file = paste0(save_dir, 'R_30.rds'))
+write.table(vals, file = paste0(save_dir, 'R_30.txt'), row.names = F, col.names = F)
+
+# Examine this and the shrinkage effect over time
+# Look at earlier time periods.
+#     Surmountable if it works for earlier times but not later ones
+# Look at other formulations which can distinguish between E vs HH (R_HH alone?)
+# Normal reproduction number method and look at cases which are "imports" (no obvious infectors)
+#    Some cases won't have a plausible infector. Label those as environmental.
+#    R package which computes this and has some accounting for imports
+#    How would environmental look relative to person to person for pure reproduction number methods?
+# With detailed spatial data, could make likelihood network based on contacts (closer vs farther)
+#    Meta-population of 
+# x-axis with proportion of household cases instead of person-to-person transmission
+# Big issue: relation between household and person-to-person is not stable over different incidences.
+#    # As long as it's household, there'll be that problem.
+
+# Three Routes
+#   1. Not a problem early in outbreaks. Later on, community cases overrun household cases. [Check R_HH/R early on]
+#   2. Imported case approach works. [Quick check]
+#   3. New formulation or adjustment to address this. E.g., just R_HH, or other formulation. [Check other formulations]

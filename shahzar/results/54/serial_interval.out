@@ -1,0 +1,66 @@
+
+R version 4.3.2 (2023-10-31) -- "Eye Holes"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> rm(list = ls())
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 284832 15.3     664588 35.5   464580 24.9
+Vcells 490571  3.8    8388608 64.0  1837406 14.1
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(foreach)
+> library(doParallel)
+Loading required package: iterators
+Loading required package: parallel
+> 
+> # Set up the number of cores used for parallelization.
+> message(detectCores())
+24
+> num_cores <- 24
+> registerDoParallel(num_cores)
+> 
+> # Number of simulations
+> n <- 1000000000
+> 
+> # Compute latent (incubation) period, infectious period, and serial interval.
+> l <- rlnorm(n, meanlog = log(29.8), sdlog = 0.45) %>% round()
+> i <- rnorm(n, mean = 7, sd = 1) %>% round()
+> si <- (l + i/2) %>% round()
+> 
+> # Compute empirical distribution of serial interval
+> si_dist <- table(factor(si, levels = 0:max(si))) / n
+> 
+> saveRDS(si, file = 'si.rds')
+> saveRDS(si_dist, file = 'si_dist.rds')
+> write.table(si, file = 'si.txt', row.names = F, col.names = F)
+> write.table(as.numeric(si_dist), file = 'si_dist.txt', row.names = F, col.names = F)
+> 
+> proc.time()
+    user   system  elapsed 
+2334.931   46.997 2382.091 

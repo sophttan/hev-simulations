@@ -6,4 +6,4 @@
 #SBATCH --mail-user=shahzar@berkeley.edu
 #SBATCH --mail-type=ALL
 
-R CMD BATCH --no-save analysis.R analysis.out
+R CMD BATCH --no-save serial_interval.R serial_interval.out
